@@ -47,7 +47,7 @@ namespace RpUtils
         private DalamudPluginInterface pluginInterface;
 
         [NonSerialized]
-        public string ServerAddress = "http://18.219.32.173:8080";
+        public string ServerAddress = "http://ec2-18-219-32-173.us-east-2.compute.amazonaws.com:8080";
         [NonSerialized]
         public string HubAddress = "/rpUtilsHub";
 
