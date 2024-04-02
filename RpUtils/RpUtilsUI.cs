@@ -62,11 +62,16 @@ namespace RpUtils
                 return; 
             }
 
-            ImGui.SetNextWindowSize(new Vector2(375, 330), ImGuiCond.FirstUseEver);
+            ImGui.SetNextWindowSize(new Vector2(300, 300), ImGuiCond.FirstUseEver);
             ImGui.SetNextWindowSizeConstraints(new Vector2(375, 330), new Vector2(float.MaxValue, float.MaxValue));
             if (ImGui.Begin("RP Utils Configuration", ref this.settingsVisible,
                 ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse))
             {
+
+                ImGui.PushTextWrapPos(375.0f);
+                ImGui.TextUnformatted("When enabled, Utils will establish a connection with the RpUtils servers. All other features require" +
+                    " Utils to be enabled. When disabled, any connections to the server are broken and features are suspended.");
+                ImGui.PopTextWrapPos();
 
                 var utilsEnabled = this.configuration.UtilsEnabled;
                 if (ImGui.Checkbox("Utils Enabled", ref utilsEnabled))
@@ -75,6 +80,12 @@ namespace RpUtils
                     // can save immediately on change, if you don't want to provide a "Save and Close" button
                     this.configuration.Save();
                 }
+
+                ImGui.PushTextWrapPos(375.0f);
+                ImGui.TextUnformatted("Sonar, when enabled, aids in finding open world RP. When the user is set to /roleplaying status," +
+                    " the plugin will periodically submit an anonymous position to an RpUtils cache. When opening the map, it will be populated" +
+                    "with the anonymous positions in your zone.");
+                ImGui.PopTextWrapPos();
 
                 var sonarEnabled = this.configuration.SonarEnabled;
                 if (ImGui.Checkbox("Sonar Enabled", ref sonarEnabled))

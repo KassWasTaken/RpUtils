@@ -9,8 +9,6 @@ using System.Threading.Tasks;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
-using Microsoft.AspNetCore.SignalR.Client;
-using Dalamud.Plugin;
 using RpUtils.Services;
 using System.Timers;
 
@@ -29,6 +27,7 @@ namespace RpUtils.Controllers
         private const int PositionCheckInterval = 10000;
         private bool WasRoleplaying = false;
 
+        
         public SonarController(Configuration configuration, ConnectionService connectionService) 
         {
             this.configuration = configuration;
@@ -36,39 +35,51 @@ namespace RpUtils.Controllers
 
             TerritoryTypes = DalamudContainer.DataManager.GetExcelSheet<TerritoryType>()!;
             OnlineStatuses = DalamudContainer.DataManager.GetExcelSheet<OnlineStatus>()!;
-            this.configuration.OnSonarEnabledChanged += OnSonarEnabledChangedHandler;
+            
+            // Adding our subscriber for when the SonarEnabled configuration changes
+            this.configuration.OnSonarEnabledChanged += OnConfigChangedHandler;
+            this.configuration.OnUtilsEnabledChanged += OnConfigChangedHandler;
+            this.connectionService.OnConnectionChange += OnConfigChangedHandler;
 
+            // Setting up timer for how often we check our position
             positionCheckTimer = new Timer(PositionCheckInterval);
             positionCheckTimer.Elapsed += CheckAndSubmitPlayerPosition;
             positionCheckTimer.AutoReset = true;
 
-            ToggleSonar();
+            // Initial kick off of the sonar if enabled
+            if (this.configuration.SonarEnabled && this.configuration.UtilsEnabled) { EnableSonar();  }
         }
 
-        public void OnSonarEnabledChangedHandler(object sender, EventArgs e)
+        // Handler for our config change listener, we're just going to kick off the toggle
+        public void OnConfigChangedHandler(object sender, EventArgs e)
         {
             ToggleSonar();
         }
 
+        // Determines whether to toggle sonar on or off. We need the SonarEnabled, UtilsEnabled, and the ConnectionService to have a connection
         public void ToggleSonar()
         {
-            if (this.configuration.SonarEnabled)
+            if (this.configuration.SonarEnabled && this.configuration.UtilsEnabled && this.connectionService.Connected)
             {
-                DalamudContainer.Lifecycle.RegisterListener(Dalamud.Game.Addon.Lifecycle.AddonEvent.PostRefresh, "AreaMap", OnOpenMap);
-                DalamudContainer.Lifecycle.RegisterListener(Dalamud.Game.Addon.Lifecycle.AddonEvent.PostRefresh, "OnlineStatus", OnOnlineStatusChange);
-                positionCheckTimer.Enabled = true;
+                EnableSonar();
             }
             else
             {
-                DalamudContainer.Lifecycle.UnregisterListener(Dalamud.Game.Addon.Lifecycle.AddonEvent.PostRefresh, "AreaMap", OnOpenMap);
-                DalamudContainer.Lifecycle.UnregisterListener(Dalamud.Game.Addon.Lifecycle.AddonEvent.PostRefresh, "OnlineStatus", OnOnlineStatusChange);
-                positionCheckTimer.Enabled = false;
+                DisableSonar();
             }
         }
 
-        private void OnOnlineStatusChange(AddonEvent type, AddonArgs args)
+        private void EnableSonar()
         {
-            DalamudContainer.PluginLog.Debug($"What do we got: Type: {type}, Args: {args}");
+            DalamudContainer.Lifecycle.RegisterListener(Dalamud.Game.Addon.Lifecycle.AddonEvent.PostRefresh, "AreaMap", OnOpenMap);
+            positionCheckTimer.Enabled = true;
+        }
+
+        private void DisableSonar()
+        {
+            DalamudContainer.Lifecycle.UnregisterListener(Dalamud.Game.Addon.Lifecycle.AddonEvent.PostRefresh, "AreaMap", OnOpenMap);
+            positionCheckTimer.Enabled = false;
+            ClearMapMarkers();
         }
 
         private void OnOpenMap(AddonEvent type, AddonArgs args)
@@ -91,16 +102,22 @@ namespace RpUtils.Controllers
             }
             catch (Exception ex)
             {
-                DalamudContainer.PluginLog.Error($"Error fetching data from server: {ex}");
+                DalamudContainer.PluginLog.Debug($"Error fetching data from server: {ex}");
             }
+        }
+
+        // TODO Do we need to be careful about clearing map markers? Can we remove specifically the ones we've added?
+        private unsafe void ClearMapMarkers()
+        {
+            var agent = AgentMap.Instance();
+            agent->ResetMapMarkers();
         }
 
         private unsafe void OpenRpMap(List<Position> positions)
         {
 
             var agent = AgentMap.Instance();
-
-            DalamudContainer.PluginLog.Debug($"Opening RP Map {agent->ToString()}");
+            // TODO Do we need to be careful about clearing map markers? Can we remove specifically the ones we've added?
             agent->ResetMapMarkers();
 
             // for each entry, mark on map
@@ -162,7 +179,9 @@ namespace RpUtils.Controllers
 
         public void Dispose()
         {
-            this.configuration.OnSonarEnabledChanged -= OnSonarEnabledChangedHandler;
+            this.configuration.OnSonarEnabledChanged -= OnConfigChangedHandler;
+            this.configuration.OnUtilsEnabledChanged -= OnConfigChangedHandler;
+            this.connectionService.OnConnectionChange -= OnConfigChangedHandler;
             positionCheckTimer.Dispose();
         }
     }

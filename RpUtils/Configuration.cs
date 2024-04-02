@@ -18,6 +18,7 @@ namespace RpUtils
             {
                 if (utilsEnabled != value)
                 {
+                    DalamudContainer.PluginLog.Debug("UtilsEnabled Changed");
                     utilsEnabled = value;
                     OnUtilsEnabledChanged?.Invoke(this, EventArgs.Empty);
                 }
@@ -33,6 +34,7 @@ namespace RpUtils
             {
                 if (sonarEnabled != value)
                 {
+                    DalamudContainer.PluginLog.Debug("SonarEnabled Changed");
                     sonarEnabled = value;
                     OnSonarEnabledChanged?.Invoke(this, EventArgs.Empty);
                 }
@@ -43,6 +45,11 @@ namespace RpUtils
 
         [NonSerialized]
         private DalamudPluginInterface pluginInterface;
+
+        [NonSerialized]
+        public string ServerAddress = "http://192.168.128.8:8080";
+        [NonSerialized]
+        public string HubAddress = "/rpSonarHub";
 
         public void Initialize(DalamudPluginInterface pluginInterface)
         {

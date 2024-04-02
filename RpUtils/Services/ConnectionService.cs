@@ -1,68 +1,137 @@
-﻿using Dalamud.Plugin;
-using Microsoft.AspNetCore.SignalR.Client;
+﻿using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace RpUtils.Services
 {
- 
+    /// <summary>
+    /// Manages the connection to the RpUtils servers, handling both establishment and maintenance of the connection.
+    /// </summary>
     public class ConnectionService : IDisposable
     {
-        public HubConnection hubConnection;
+        private HubConnection hubConnection;
         private Configuration configuration = new Configuration();
 
+        /// <summary>
+        /// Occurs when the connection state changes.
+        /// </summary>
+        public event EventHandler OnConnectionChange;
+        private bool connected = false;
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the connection to the server is established.
+        /// </summary>
+        public bool Connected
+        {
+            get => connected;
+            set
+            {
+                if (connected != value)
+                {
+                    DalamudContainer.PluginLog.Debug("Connection Changed");
+                    connected = value;
+                    OnConnectionChange?.Invoke(this, EventArgs.Empty);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ConnectionService"/> class.
+        /// </summary>
+        /// <param name="configuration">The configuration settings for the connection.</param>
         public ConnectionService(Configuration configuration)
         {
             this.configuration = configuration;
             this.configuration.OnUtilsEnabledChanged += OnUtilsEnabledChangedHandler;
-            ToggleConnection();
+
+            if (this.configuration.UtilsEnabled) { Connect(); }
         }
 
-        public HubConnection getConnection()
+        /// <summary>
+        /// Handles changes to the utility enabled setting.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">An EventArgs that contains no event data.</param>
+        private async void OnUtilsEnabledChangedHandler(object sender, EventArgs e)
         {
-            return hubConnection;
+            if (this.configuration.UtilsEnabled) await Connect();
+            else await Disconnect();
         }
 
-        public void OnUtilsEnabledChangedHandler(object sender, EventArgs e)
+        /// <summary>
+        /// Asynchronously establishes a connection to the RpUtils servers.
+        /// </summary>
+        /// <returns>A task that represents the asynchronous operation.</returns>
+        private async Task Connect()
         {
-            ToggleConnection();
-        }
+            if (!this.configuration.UtilsEnabled || this.Connected) {  return; }
 
-        public void ToggleConnection()
-        {
-            if (this.configuration.UtilsEnabled) Connect();
-            else Disconnect();
-        }
+            InitializeHubConnection();
+            SubscribeToConnectionEvents();
 
-        public async Task Connect()
-        {
-            DalamudContainer.PluginLog.Debug("Establishing connection...");
             try
             {
-                var connectionUrl = "http://192.168.128.8:8080/rpSonarHub";
-                // TODO Actually get configuration details here
-                hubConnection = new HubConnectionBuilder()
-                    .WithUrl(connectionUrl)
-                    .ConfigureLogging(logging => {
-                        logging.SetMinimumLevel(LogLevel.Debug);
-                        logging.AddConsole();
-                    })
-                    .Build();
-
                 await hubConnection.StartAsync();
-                DalamudContainer.PluginLog.Info($"Connected to {connectionUrl} established: {hubConnection.State}");
+                this.Connected = true;
             }
             catch (Exception ex)
             {
-                DalamudContainer.PluginLog.Error($"Failed to connect to SignalR server: {ex.Message}");
+                DalamudContainer.PluginLog.Debug($"Failed to connect to SignalR server: {ex.Message}");
+                this.Connected = false;
             }
         }
 
-        public async Task Disconnect()
+        /// <summary>
+        /// Initializes the HubConnection and configures logging.
+        /// </summary>
+        private void InitializeHubConnection()
+        {
+            // TODO Actually get configuration details here
+            var connectionUrl = this.configuration.ServerAddress + this.configuration.HubAddress;
+            hubConnection = new HubConnectionBuilder()
+                .WithUrl(connectionUrl)
+                .WithAutomaticReconnect()
+                .ConfigureLogging(logging => {
+                    logging.SetMinimumLevel(LogLevel.Debug);
+                    logging.AddConsole();
+                })
+                .Build();
+        }
+
+        /// <summary>
+        /// Subscribes to connection events to handle when the connection is closed or reconnected.
+        /// </summary>
+        private void SubscribeToConnectionEvents()
+        {
+            // Subscribe to our connection closed event
+            hubConnection.Closed += async (error) =>
+            {
+                DalamudContainer.PluginLog.Debug("Connection closed.");
+                this.Connected = false;
+            };
+
+            hubConnection.Reconnecting += (error) =>
+            {
+                DalamudContainer.PluginLog.Debug("Reconnecting...");
+                this.Connected = false;
+                return Task.CompletedTask;
+            };
+
+                // Subscribe to our reconected event
+                hubConnection.Reconnected += (connectionId) =>
+            {
+                DalamudContainer.PluginLog.Debug("Reconnected");
+                this.Connected = true;
+                return Task.CompletedTask;
+            };
+        }
+
+        /// <summary>
+        /// Asynchronously disconnects from the RpUtils servers.
+        /// </summary>
+        /// <returns>A task that represents the asynchronous operation.</returns>
+        private async Task Disconnect()
         {
             DalamudContainer.PluginLog.Debug("Disconnecting from RP Sonar Servers");
             try
@@ -71,20 +140,31 @@ namespace RpUtils.Services
             }
             catch (Exception ex)
             {
-                DalamudContainer.PluginLog.Error($"Failed to disconnect from server: {ex.Message}");
+                DalamudContainer.PluginLog.Debug($"Failed to disconnect from server: {ex.Message}");
             }
         }
 
+        /// <summary>
+        /// Checks if the connection is active and ready.
+        /// </summary>
+        /// <returns>true if the connection is active; otherwise, false.</returns>
         private bool CheckConnectionReady()
         {
             if (hubConnection == null || hubConnection.State != HubConnectionState.Connected)
             {
-                DalamudContainer.PluginLog.Error("Connection is not active.");
+                DalamudContainer.PluginLog.Debug("Connection is not active.");
                 return false;
             }
             return true;
         }
 
+        /// <summary>
+        /// Invokes a method on the Hub asynchronously.
+        /// </summary>
+        /// <typeparam name="T">The return type of the hub method.</typeparam>
+        /// <param name="methodName">The name of the hub method to invoke.</param>
+        /// <param name="args">The arguments to pass to the hub method.</param>
+        /// <returns>A task that represents the asynchronous operation, including the return value of the hub method.</returns>
         public async Task<T> InvokeHubMethodAsync<T>(string methodName, params object[] args)
         {
             if (!CheckConnectionReady())
@@ -94,16 +174,22 @@ namespace RpUtils.Services
 
             try
             {
-                DalamudContainer.PluginLog.Info($"Calling {methodName} with arguments: {string.Join(", ", args)}");
+                DalamudContainer.PluginLog.Debug($"Calling {methodName} with arguments: {string.Join(", ", args)}");
                 return await hubConnection.InvokeCoreAsync<T>(methodName, args);
             }
             catch (Exception ex)
             {
-                DalamudContainer.PluginLog.Error($"Error calling {methodName}: {ex.Message}");
+                DalamudContainer.PluginLog.Debug($"Error calling {methodName}: {ex.Message}");
                 throw;
             }
         }
 
+        /// <summary>
+        /// Invokes a method on the Hub asynchronously without expecting a return value.
+        /// </summary>
+        /// <param name="methodName">The name of the hub method to invoke.</param>
+        /// <param name="args">The arguments to pass to the hub method.</param>
+        /// <returns>A task that represents the asynchronous operation of invoking the hub method.</returns>
         public async Task InvokeHubMethodAsync(string methodName, params object[] args)
         {
             if (!CheckConnectionReady())
@@ -113,39 +199,27 @@ namespace RpUtils.Services
 
             try
             {
-                DalamudContainer.PluginLog.Info($"Calling {methodName} with arguments: {string.Join(", ", args)}");
+                DalamudContainer.PluginLog.Debug($"Calling {methodName} with arguments: {string.Join(", ", args)}");
                 await hubConnection.SendCoreAsync(methodName, args);
             }
             catch (Exception ex)
             {
-                DalamudContainer.PluginLog.Error($"Error calling {methodName}: {ex.Message}");
+                DalamudContainer.PluginLog.Debug($"Error calling {methodName}: {ex.Message}");
                 throw;
             }
         }
 
-        public string GetConnectionStatus()
-        {
-            if (hubConnection == null) { return "Connection not initialized"; }
-
-            switch (hubConnection.State)
-            {
-                case HubConnectionState.Connecting:
-                    return "Connecting...";
-                case HubConnectionState.Connected:
-                    return "Connected";
-                case HubConnectionState.Reconnecting:
-                    return "Reconnecting...";
-                case HubConnectionState.Disconnected:
-                    return "Disconnected";
-                default:
-                    return "Unknown";
-            }
-        }
-
+        /// <summary>
+        /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
+        /// </summary>
         public void Dispose()
         {
             this.configuration.OnUtilsEnabledChanged -= OnUtilsEnabledChangedHandler;
-            hubConnection.DisposeAsync();
+            if (hubConnection != null)
+            {
+                var disposeTask = hubConnection.DisposeAsync();
+                disposeTask.GetAwaiter().GetResult();
+            }
         }
     }
 }
