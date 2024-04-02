@@ -84,7 +84,6 @@ namespace RpUtils.Controllers
 
         private void OnOpenMap(AddonEvent type, AddonArgs args)
         {
-            DalamudContainer.PluginLog.Debug($"What do we got: Type: {type}, Args: {args}");
             FindNearbyRp();
         }
 
@@ -167,7 +166,7 @@ namespace RpUtils.Controllers
 
         private async Task SendLocationToServer(PlayerCharacter player)
         {
-            DalamudContainer.PluginLog.Info("Sending location to server");
+            DalamudContainer.PluginLog.Debug("Sending location to server");
             var mapId = TerritoryTypes.GetRow(DalamudContainer.ClientState.TerritoryType).Map.Value.RowId;
 
             await connectionService.InvokeHubMethodAsync("SendLocation",

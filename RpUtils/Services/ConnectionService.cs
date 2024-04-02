@@ -29,7 +29,7 @@ namespace RpUtils.Services
             {
                 if (connected != value)
                 {
-                    DalamudContainer.PluginLog.Debug("Connection Changed");
+                    DalamudContainer.PluginLog.Debug($"Connected changed: {value}");
                     connected = value;
                     OnConnectionChange?.Invoke(this, EventArgs.Empty);
                 }
@@ -65,6 +65,7 @@ namespace RpUtils.Services
         /// <returns>A task that represents the asynchronous operation.</returns>
         private async Task Connect()
         {
+            DalamudContainer.PluginLog.Debug("Establishing connection to RpUtils Servers...");
             if (!this.configuration.UtilsEnabled || this.Connected) {  return; }
 
             InitializeHubConnection();
@@ -87,7 +88,6 @@ namespace RpUtils.Services
         /// </summary>
         private void InitializeHubConnection()
         {
-            // TODO Actually get configuration details here
             var connectionUrl = this.configuration.ServerAddress + this.configuration.HubAddress;
             hubConnection = new HubConnectionBuilder()
                 .WithUrl(connectionUrl)
@@ -133,7 +133,7 @@ namespace RpUtils.Services
         /// <returns>A task that represents the asynchronous operation.</returns>
         private async Task Disconnect()
         {
-            DalamudContainer.PluginLog.Debug("Disconnecting from RP Sonar Servers");
+            DalamudContainer.PluginLog.Debug("Disconnecting from RpUtils Servers");
             try
             {
                 await hubConnection.StopAsync();

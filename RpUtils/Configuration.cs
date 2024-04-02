@@ -47,9 +47,9 @@ namespace RpUtils
         private DalamudPluginInterface pluginInterface;
 
         [NonSerialized]
-        public string ServerAddress = "http://192.168.128.8:8080";
+        public string ServerAddress = "http://18.219.32.173:8080";
         [NonSerialized]
-        public string HubAddress = "/rpSonarHub";
+        public string HubAddress = "/rpUtilsHub";
 
         public void Initialize(DalamudPluginInterface pluginInterface)
         {
