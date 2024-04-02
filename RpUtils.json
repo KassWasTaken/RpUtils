@@ -1,4 +1,4 @@
-{
+[{
   "Author": "Kass",
   "Name": "RP Utils",
   "InternalName": "RpUtils",
@@ -16,4 +16,4 @@
   "DownloadLinkInstall": "https://github.com/KassWasTaken/RpUtils/releases/download/v0.0.1/latest.zip",
   "DownloadLinkTesting": "https://github.com/KassWasTaken/RpUtils/releases/download/v0.0.1/latest.zip",
   "DownloadLinkUpdate": "https://github.com/KassWasTaken/RpUtils/releases/download/v0.0.1/latest.zip"
-}
+}]
