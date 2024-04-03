@@ -19,6 +19,7 @@ namespace RpUtils.Controllers
         private Configuration configuration;
         private ConnectionService connectionService;
         private ExcelSheet<TerritoryType> TerritoryTypes { get; set; }
+        private ExcelSheet<Map> Maps { get; set; }
         private ExcelSheet<OnlineStatus> OnlineStatuses { get; set; }
 
         private Timer positionCheckTimer;
@@ -34,6 +35,7 @@ namespace RpUtils.Controllers
             this.connectionService = connectionService;
 
             TerritoryTypes = DalamudContainer.DataManager.GetExcelSheet<TerritoryType>()!;
+            Maps = DalamudContainer.DataManager.GetExcelSheet<Map>()!;
             OnlineStatuses = DalamudContainer.DataManager.GetExcelSheet<OnlineStatus>()!;
             
             // Adding our subscriber for when the SonarEnabled configuration changes
@@ -90,12 +92,12 @@ namespace RpUtils.Controllers
         public async Task FindNearbyRp()
         {
             var player = DalamudContainer.ClientState.LocalPlayer;
+            var map = GetSelectedMap();
 
             try
             {
-                var mapId = TerritoryTypes.GetRow(DalamudContainer.ClientState.TerritoryType).Map.Value.RowId;
-                DalamudContainer.PluginLog.Debug($"Searching for RP in {player.CurrentWorld.Id}:{mapId}");
-                var positions = await connectionService.InvokeHubMethodAsync<List<Position>>("GetPlayersInWorldMap", player.CurrentWorld.Id, mapId);
+                DalamudContainer.PluginLog.Debug($"Searching for RP in {player.CurrentWorld.Id}:{map.Id.RawString}");
+                var positions = await connectionService.InvokeHubMethodAsync<List<Position>>("GetPlayersInWorldMap", player.CurrentWorld.Id, map.Id.RawString);
 
                 OpenRpMap(positions);
             }
@@ -104,6 +106,8 @@ namespace RpUtils.Controllers
                 DalamudContainer.PluginLog.Debug($"Error fetching data from server: {ex}");
             }
         }
+
+        
 
         // TODO Do we need to be careful about clearing map markers? Can we remove specifically the ones we've added?
         private unsafe void ClearMapMarkers()
@@ -116,6 +120,7 @@ namespace RpUtils.Controllers
         {
 
             var agent = AgentMap.Instance();
+            DalamudContainer.PluginLog.Debug($"Agent Map Id: {agent->SelectedMapId}");
             // TODO Do we need to be careful about clearing map markers? Can we remove specifically the ones we've added?
             agent->ResetMapMarkers();
 
@@ -167,14 +172,27 @@ namespace RpUtils.Controllers
         private async Task SendLocationToServer(PlayerCharacter player)
         {
             DalamudContainer.PluginLog.Debug("Sending location to server");
-            var mapId = TerritoryTypes.GetRow(DalamudContainer.ClientState.TerritoryType).Map.Value.RowId;
-
+            var map = GetCurrentMap();
+            DalamudContainer.PluginLog.Debug($"Sending location to server {map.Id.RawString}");
             await connectionService.InvokeHubMethodAsync("SendLocation",
                 player.CurrentWorld.Id,
-                mapId,
-                player.Position.X,
-                player.Position.Z);
+                map.Id.RawString,
+                player.Position.X + map.OffsetX,
+                player.Position.Z + map.OffsetY);
         }
+
+        private unsafe Map GetCurrentMap()
+        {
+            var agent = AgentMap.Instance();
+            return Maps.GetRow(agent->CurrentMapId);
+        }
+
+        private unsafe Map GetSelectedMap()
+        {
+            var agent = AgentMap.Instance();
+            return Maps.GetRow(agent->SelectedMapId);
+        }
+
 
         public void Dispose()
         {
