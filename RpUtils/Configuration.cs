@@ -47,7 +47,7 @@ namespace RpUtils
         private DalamudPluginInterface pluginInterface;
 
         [NonSerialized]
-        public string ServerAddress = "http://rputils.witchcat.dev:8080";
+        public string ServerAddress = "http://rputils.catwitch.dev:8080";
         [NonSerialized]
         public string HubAddress = "/rpUtilsHub";
 
