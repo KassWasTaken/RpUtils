@@ -18,6 +18,7 @@ namespace RpUtils.Services
         /// </summary>
         public event EventHandler OnConnectionChange;
         private bool connected = false;
+        public bool updateRequired = false;
 
         /// <summary>
         /// Gets or sets a value indicating whether the connection to the server is established.
@@ -65,8 +66,8 @@ namespace RpUtils.Services
         /// <returns>A task that represents the asynchronous operation.</returns>
         private async Task Connect()
         {
+            if (!this.configuration.UtilsEnabled || this.Connected || this.updateRequired) {  return; }
             DalamudContainer.PluginLog.Debug("Establishing connection to RpUtils Servers...");
-            if (!this.configuration.UtilsEnabled || this.Connected) {  return; }
 
             InitializeHubConnection();
             SubscribeToConnectionEvents();
@@ -88,7 +89,8 @@ namespace RpUtils.Services
         /// </summary>
         private void InitializeHubConnection()
         {
-            var connectionUrl = this.configuration.ServerAddress + this.configuration.HubAddress;
+            DalamudContainer.PluginLog.Debug($"VERSION: {this.configuration.ApiVersion}");
+            var connectionUrl = this.configuration.ServerAddress + this.configuration.HubAddress + "?version=" + this.configuration.ApiVersion;
             hubConnection = new HubConnectionBuilder()
                 .WithUrl(connectionUrl)
                 .WithAutomaticReconnect()
@@ -118,13 +120,23 @@ namespace RpUtils.Services
                 return Task.CompletedTask;
             };
 
-                // Subscribe to our reconected event
-                hubConnection.Reconnected += (connectionId) =>
+            // Subscribe to our reconected event
+            hubConnection.Reconnected += (connectionId) =>
             {
                 DalamudContainer.PluginLog.Debug("Reconnected");
                 this.Connected = true;
                 return Task.CompletedTask;
             };
+
+            hubConnection.On<string>("UpdateClient", (message) =>
+            {
+                DalamudContainer.PluginLog.Debug($"Server message: {message}");
+                this.updateRequired = true;
+                this.connected = false;
+                var updateNotification = new Dalamud.Interface.ImGuiNotification.Notification();
+                updateNotification.Content = "Please update RpUtils: " + message;
+                DalamudContainer.NotificationManager.AddNotification(updateNotification);
+            });
         }
 
         /// <summary>

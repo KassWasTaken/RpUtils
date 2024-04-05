@@ -31,7 +31,7 @@ namespace RpUtils
             this.ConnectionService = new ConnectionService(this.Configuration);
             this.SonarController = new SonarController(this.Configuration, this.ConnectionService);
 
-            this.UI = new RpUtilsUI(this.Configuration);
+            this.UI = new RpUtilsUI(this.Configuration, this.ConnectionService);
             
             DalamudContainer.CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
             {

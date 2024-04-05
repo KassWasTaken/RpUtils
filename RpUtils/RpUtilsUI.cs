@@ -1,4 +1,5 @@
 ﻿using ImGuiNET;
+using RpUtils.Services;
 using System;
 using System.Numerics;
 
@@ -9,6 +10,7 @@ namespace RpUtils
     class RpUtilsUI : IDisposable
     {
         private Configuration configuration;
+        private ConnectionService connectionService;
         
         // this extra bool exists for ImGui, since you can't ref a property
         private bool visible = false;
@@ -25,9 +27,10 @@ namespace RpUtils
             set { this.settingsVisible = value; }
         }
         
-        public RpUtilsUI(Configuration configuration)
+        public RpUtilsUI(Configuration configuration, ConnectionService connectionService)
         {
             this.configuration = configuration;
+            this.connectionService = connectionService;
         }
 
         public void Dispose()
@@ -67,6 +70,28 @@ namespace RpUtils
             if (ImGui.Begin("RP Utils Configuration", ref this.settingsVisible,
                 ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse))
             {
+
+                // Connection status
+
+                var connectionStatus = "";
+                if (this.connectionService.Connected)
+                {
+                    connectionStatus = "Connected";
+                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0, 1, 0, 1)); // Green for "Connected"
+                }
+                else if (this.connectionService.updateRequired) 
+                {
+                    connectionStatus = "Update Required";
+                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1, 0, 0, 1)); // Red for "Update Required"
+                }
+                else
+                {
+                    connectionStatus = "Disconnected";
+                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1, 1, 0, 1)); // Yellow for "Disconnected"
+                }
+                ImGui.Text($"Status: {connectionStatus}");
+                ImGui.PopStyleColor();
+
 
                 ImGui.PushTextWrapPos(375.0f);
                 ImGui.TextUnformatted("When enabled, Utils will establish a connection with the RpUtils servers. All other features require" +
