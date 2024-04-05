@@ -2,7 +2,7 @@
   "Author": "Kass",
   "Name": "RP Utils",
   "InternalName": "RpUtils",
-  "AssemblyVersion": "0.0.1",
+  "AssemblyVersion": "0.0.2.0",
   "Description": "A suite (eventually) of features to support roleplay. Currently only the sonar. /rputils",
   "ApplicableVersion": "any",
   "RepoUrl": "https://github.com/KassWasTaken/RpUtils",
@@ -13,7 +13,7 @@
   "LoadPriority": 0,
   "Punchline": "Supporting your RP needs.",
   "AcceptsFeedback": true,
-  "DownloadLinkInstall": "https://github.com/KassWasTaken/RpUtils/releases/download/v0.0.1/latest.zip",
-  "DownloadLinkTesting": "https://github.com/KassWasTaken/RpUtils/releases/download/v0.0.1/latest.zip",
-  "DownloadLinkUpdate": "https://github.com/KassWasTaken/RpUtils/releases/download/v0.0.1/latest.zip"
+  "DownloadLinkInstall": "https://github.com/KassWasTaken/RpUtils/releases/download/v0.0.2/latest.zip",
+  "DownloadLinkTesting": "https://github.com/KassWasTaken/RpUtils/releases/download/v0.0.2/latest.zip",
+  "DownloadLinkUpdate": "https://github.com/KassWasTaken/RpUtils/releases/download/v0.0.2/latest.zip"
 }]
