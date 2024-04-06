@@ -47,7 +47,7 @@ namespace RpUtils
         private DalamudPluginInterface pluginInterface;
 
         [NonSerialized]
-        public string ApiVersion = "0.0.1";
+        public string ApiVersion = "0.0.2";
         [NonSerialized]
         public string ServerAddress = "http://rputils.catwitch.dev:8080";
         [NonSerialized]
