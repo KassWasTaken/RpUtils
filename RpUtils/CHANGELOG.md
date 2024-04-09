@@ -12,5 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Updated to API version 0.0.2
+- Fixed double calls to enabling SonarController, causing double listeners for opening the map
 
 ### Removed

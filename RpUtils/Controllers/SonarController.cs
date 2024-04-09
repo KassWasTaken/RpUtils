@@ -47,9 +47,6 @@ namespace RpUtils.Controllers
             positionCheckTimer = new Timer(PositionCheckInterval);
             positionCheckTimer.Elapsed += CheckAndSubmitPlayerPosition;
             positionCheckTimer.AutoReset = true;
-
-            // Initial kick off of the sonar if enabled
-            if (this.configuration.SonarEnabled && this.configuration.UtilsEnabled) { EnableSonar();  }
         }
 
         // Handler for our config change listener, we're just going to kick off the toggle
