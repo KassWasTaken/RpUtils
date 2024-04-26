@@ -13,13 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+## [v0.0.4]
+
+### Changed
+	- Fixed markers not showing or showing with odd placements due to AddMapMarker incorrectly applying scaling for the current map to raw positions for selected maps
+
+### Removed
+	- Removed custom repo json file, as it is no longer needed	
+
 ## [v0.0.3]
 
 ### Added
-- Added changelog (You are reading it!)
+	- Added changelog (You are reading it!)
 
 ### Changed
-- Updated to API version 0.0.2
-- Fixed double calls to enabling SonarController, causing double listeners for opening the map
-
-### Removed
+	- Updated to API version 0.0.2
+	- Fixed double calls to enabling SonarController, causing double listeners for opening the map

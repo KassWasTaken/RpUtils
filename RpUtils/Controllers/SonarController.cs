@@ -96,6 +96,8 @@ namespace RpUtils.Controllers
                 DalamudContainer.PluginLog.Debug($"Searching for RP in {player.CurrentWorld.Id}:{map.Id.RawString}");
                 var positions = await connectionService.InvokeHubMethodAsync<List<Position>>("GetPlayersInWorldMap", player.CurrentWorld.Id, map.Id.RawString);
 
+                DalamudContainer.PluginLog.Debug($"Positions found: {positions.Count}");
+
                 OpenRpMap(positions);
             }
             catch (Exception ex)
@@ -124,8 +126,12 @@ namespace RpUtils.Controllers
             // for each entry, mark on map
             positions.ForEach(position =>
             {
+                DalamudContainer.PluginLog.Debug($"Adding position: {position.X} {position.Z}");
                 var pos = new FFXIVClientStructs.FFXIV.Common.Math.Vector3(position.X, 0, position.Z);
-                agent->AddMapMarker(pos, 61545);
+                // Adding extra arguments here to set textPosition to 0. This is to avoid AddMapMarker
+                // incorrectly multiplying the position by the CurrentMapSizeFactorFloat and causing issues
+                // when viewing other maps
+                DalamudContainer.PluginLog.Debug($"{agent->AddMapMarker(pos, 61545, 0, null, 0)}");
             });
         }
 
