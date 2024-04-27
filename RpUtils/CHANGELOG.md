@@ -8,14 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Removed
+
+## [0.2.0]
+
+### Added
 	- Added SettingsTab which shows general plugin settings
 	- Added SonarConfigTab which shows RP Sonar settings
 	- Added CurrentRpTab which shows the counts of RPers in world/zones, as well as the current listeners
 
 ### Changed
 	- Rewrote existing UI to make use of WindowSystem, and split into tabs
-
-### Removed
 
 ## [v0.1.0]
 
