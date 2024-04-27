@@ -20,7 +20,6 @@ namespace RpUtils.Controllers
     {
         private Configuration configuration;
         private ConnectionService connectionService;
-        private ExcelSheet<TerritoryType> TerritoryTypes { get; set; }
         private ExcelSheet<Map> Maps { get; set; }
         private ExcelSheet<OnlineStatus> OnlineStatuses { get; set; }
         private DtrBarEntry dtrBarEntry;
@@ -38,7 +37,6 @@ namespace RpUtils.Controllers
             this.configuration = configuration;
             this.connectionService = connectionService;
 
-            TerritoryTypes = DalamudContainer.DataManager.GetExcelSheet<TerritoryType>()!;
             Maps = DalamudContainer.DataManager.GetExcelSheet<Map>()!;
             OnlineStatuses = DalamudContainer.DataManager.GetExcelSheet<OnlineStatus>()!;
             
@@ -63,6 +61,7 @@ namespace RpUtils.Controllers
         public void OnConfigChangedHandler(object sender, EventArgs e)
         {
             ToggleSonar();
+            SetDtrText();
         }
 
         // Determines whether to toggle sonar on or off. We need the SonarEnabled, UtilsEnabled, and the ConnectionService to have a connection
@@ -247,7 +246,8 @@ namespace RpUtils.Controllers
 
         private void SetDtrText()
         {
-            dtrBarEntry.Text = $"RP: {(this.configuration.SonarEnabled ? "On" : "Off")}";
+            var isSonarActive = this.configuration.SonarEnabled && this.configuration.UtilsEnabled && this.connectionService.Connected;
+            dtrBarEntry.Text = $"RP: {(isSonarActive ? "On" : "Off")}";
         }
 
 

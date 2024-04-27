@@ -7,6 +7,8 @@ using System;
 using System.Threading.Tasks;
 using RpUtils.Controllers;
 using RpUtils.Services;
+using RpUtils.UI;
+using Dalamud.Interface.Windowing;
 
 namespace RpUtils
 {
@@ -17,9 +19,11 @@ namespace RpUtils
         private const string CommandName = "/rputils";
 
         private Configuration Configuration { get; init; }
-        private RpUtilsUI UI { get; init; }
         private SonarController SonarController { get; init; }
         private ConnectionService ConnectionService { get; init; }
+
+        public readonly WindowSystem WindowSystem = new("RpUtils");
+        private MainWindow MainWindow { get; init; }
 
         public RpUtils([RequiredVersion("1.0")] DalamudPluginInterface pluginInterface)
         {
@@ -31,7 +35,9 @@ namespace RpUtils
             this.ConnectionService = new ConnectionService(this.Configuration);
             this.SonarController = new SonarController(this.Configuration, this.ConnectionService);
 
-            this.UI = new RpUtilsUI(this.Configuration, this.ConnectionService);
+            MainWindow = new MainWindow(this.Configuration, this.ConnectionService);
+
+            WindowSystem.AddWindow(MainWindow);
             
             DalamudContainer.CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
             {
@@ -39,13 +45,15 @@ namespace RpUtils
             });
 
             DalamudContainer.PluginInterface.UiBuilder.Draw += DrawUI;
-            DalamudContainer.PluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
+            DalamudContainer.PluginInterface.UiBuilder.OpenConfigUi += ToggleMainUI;
+            DalamudContainer.PluginInterface.UiBuilder.OpenMainUi += ToggleMainUI;
         }
 
         public void Dispose()
         {
-            this.UI.Dispose();
+            WindowSystem.RemoveAllWindows();
 
+            this.MainWindow.Dispose();
             this.ConnectionService.Dispose();
             this.SonarController.Dispose();
             DalamudContainer.CommandManager.RemoveHandler(CommandName);
@@ -53,18 +61,11 @@ namespace RpUtils
 
         private void OnCommand(string command, string args)
         {
-            // in response to the slash command, just display our main ui
-            this.UI.SettingsVisible = true;
+            ToggleMainUI();
         }
 
-        private void DrawUI()
-        {
-            this.UI.Draw();
-        }
-
-        private void DrawConfigUI()
-        {
-            this.UI.SettingsVisible = true;
-        }
+        private void DrawUI() => WindowSystem.Draw();
+        public void ToggleConfigUI() => MainWindow.Toggle();
+        public void ToggleMainUI() => MainWindow.Toggle();
     }
 }
