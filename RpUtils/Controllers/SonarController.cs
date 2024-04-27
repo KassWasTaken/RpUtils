@@ -11,6 +11,8 @@ using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using RpUtils.Services;
 using System.Timers;
+using Dalamud.Game.Gui.Dtr;
+using FFXIVClientStructs.FFXIV.Client.Game.Housing;
 
 namespace RpUtils.Controllers
 {
@@ -21,9 +23,11 @@ namespace RpUtils.Controllers
         private ExcelSheet<TerritoryType> TerritoryTypes { get; set; }
         private ExcelSheet<Map> Maps { get; set; }
         private ExcelSheet<OnlineStatus> OnlineStatuses { get; set; }
+        private DtrBarEntry dtrBarEntry;
 
         private Timer positionCheckTimer;
         private Vector3 lastReportedPosition = Vector3.Zero;
+        private bool lastReportedInHousing = false;
         private const float DistanceThreshold = 5.0f;
         private const int PositionCheckInterval = 10000;
         private bool WasRoleplaying = false;
@@ -47,6 +51,12 @@ namespace RpUtils.Controllers
             positionCheckTimer = new Timer(PositionCheckInterval);
             positionCheckTimer.Elapsed += CheckAndSubmitPlayerPosition;
             positionCheckTimer.AutoReset = true;
+
+            // Setting up our DTR bar entry
+            dtrBarEntry =  DalamudContainer.DtrBar.Get("RP Sonar");
+            UpdateDtr();
+            this.configuration.OnShowSonarDtrChanged += OnShowDtrChangedHandler;
+            
         }
 
         // Handler for our config change listener, we're just going to kick off the toggle
@@ -60,10 +70,12 @@ namespace RpUtils.Controllers
         {
             if (this.configuration.SonarEnabled && this.configuration.UtilsEnabled && this.connectionService.Connected)
             {
+                DalamudContainer.PluginLog.Debug("Enabling Sonar");
                 EnableSonar();
             }
             else
             {
+                DalamudContainer.PluginLog.Debug("Disabling Sonar");
                 DisableSonar();
             }
         }
@@ -117,7 +129,7 @@ namespace RpUtils.Controllers
 
         private unsafe void OpenRpMap(List<Position> positions)
         {
-
+            IsPlayerInHousingDistract();
             var agent = AgentMap.Instance();
             DalamudContainer.PluginLog.Debug($"Agent Map Id: {agent->SelectedMapId}");
             // TODO Do we need to be careful about clearing map markers? Can we remove specifically the ones we've added?
@@ -139,10 +151,35 @@ namespace RpUtils.Controllers
         {
             var player = DalamudContainer.ClientState.LocalPlayer;
 
+            // Player needs to have moved and needs to be roleplaying
             if (HasPlayerMoved(player.Position) && IsPlayerRoleplaying(player.OnlineStatus.GameData.Name))
             {
-                SendLocationToServer(player);
+                // If we're in a housing district, we want to check if we were previously reported as being in a housing district
+                // If we weren't, then we want to remove the location data since we're no longer reporting in this zone. If we were
+                // already reported as being in a housing district, we don't need to do anything
+                if (IsPlayerInHousingDistract())
+                {
+                    if (!lastReportedInHousing)
+                    {
+                        lastReportedInHousing = true;
+                        connectionService.InvokeHubMethodAsync("RemoveLocationData");
+                    }
+                } else
+                {
+                    lastReportedInHousing = false;
+                    SendLocationToServer(player);
+                }
+
+                
             }
+        }
+
+        private unsafe bool IsPlayerInHousingDistract()
+        {
+            var agent = HousingManager.Instance();
+            var currentWard = agent->GetCurrentWard();
+            // Returns -1 if we're not in a housing district
+            return (currentWard > 0);
         }
 
         private bool IsPlayerRoleplaying(String status)
@@ -196,12 +233,30 @@ namespace RpUtils.Controllers
             return Maps.GetRow(agent->SelectedMapId);
         }
 
+        public void OnShowDtrChangedHandler(object sender, EventArgs e)
+        {
+            dtrBarEntry.Shown = this.configuration.ShowSonarDtr;
+        }
+
+        private void UpdateDtr()
+        {
+            SetDtrText();
+            dtrBarEntry.OnClick = () => { this.configuration.SonarEnabled = !this.configuration.SonarEnabled; SetDtrText(); };
+            dtrBarEntry.Tooltip = "Click to toggle RP Sonar";
+        }
+
+        private void SetDtrText()
+        {
+            dtrBarEntry.Text = $"RP: {(this.configuration.SonarEnabled ? "On" : "Off")}";
+        }
+
 
         public void Dispose()
         {
             this.configuration.OnSonarEnabledChanged -= OnConfigChangedHandler;
             this.configuration.OnUtilsEnabledChanged -= OnConfigChangedHandler;
             this.connectionService.OnConnectionChange -= OnConfigChangedHandler;
+            this.configuration.OnShowSonarDtrChanged -= OnShowDtrChangedHandler;
             positionCheckTimer.Dispose();
         }
     }

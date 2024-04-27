@@ -41,6 +41,22 @@ namespace RpUtils
             }
         }
 
+        [field: NonSerialized] public event EventHandler OnShowSonarDtrChanged;
+        private bool showSonarDtr = true;
+        public bool ShowSonarDtr
+        {
+            get => showSonarDtr;
+            set
+            {
+                if (showSonarDtr != value)
+                {
+                    DalamudContainer.PluginLog.Debug("ShowSonarDtr Changed");
+                    showSonarDtr = value;
+                    OnShowSonarDtrChanged?.Invoke(this, EventArgs.Empty);
+                }
+            }
+        }
+
         // the below exist just to make saving less cumbersome
 
         [NonSerialized]

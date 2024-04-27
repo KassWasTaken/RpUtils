@@ -8,8 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+	- DtrEntry for toggling RP Sonar and status
+	- Config option for showing or hiding the DtrEntry
 
 ### Changed
+	- No longer report locations if in housing districts
 
 ### Removed
 
