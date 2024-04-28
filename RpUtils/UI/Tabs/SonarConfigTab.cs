@@ -38,12 +38,12 @@ namespace RpUtils.UI.Tabs
                 }
 
                 ImGui.PushTextWrapPos(375.0f);
-                ImGui.TextUnformatted("This setting will show an entry in the server info bar, which will show the current status of the sonar," +
-                    "and allow the user to easily toggle the sonar on or off by clicking on it.");
+                ImGui.TextUnformatted("This setting will show an entry in the Dalamud info bar, which will show the current status of the sonar, " +
+                    "and allow the user to easily open the rputils window.");
                 ImGui.PopTextWrapPos();
 
                 var showSonarDtr = this.configuration.ShowSonarDtr;
-                if (ImGui.Checkbox("Show Sonar Toggle", ref showSonarDtr))
+                if (ImGui.Checkbox("Show Dalamud Info Indicator", ref showSonarDtr))
                 {
                     this.configuration.ShowSonarDtr = showSonarDtr;
                     // can save immediately on change, if you don't want to provide a "Save and Close" button

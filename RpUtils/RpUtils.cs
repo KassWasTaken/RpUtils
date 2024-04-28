@@ -21,6 +21,7 @@ namespace RpUtils
         private Configuration Configuration { get; init; }
         private SonarController SonarController { get; init; }
         private ConnectionService ConnectionService { get; init; }
+        private DtrEntryService DtrEntryService { get; init; }
 
         public readonly WindowSystem WindowSystem = new("RpUtils");
         private MainWindow MainWindow { get; init; }
@@ -38,7 +39,9 @@ namespace RpUtils
             MainWindow = new MainWindow(this.Configuration, this.ConnectionService);
 
             WindowSystem.AddWindow(MainWindow);
-            
+
+            this.DtrEntryService = new DtrEntryService(this.Configuration, this.ConnectionService, MainWindow);
+
             DalamudContainer.CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
             {
                 HelpMessage = "Opens the config for RP Utils"

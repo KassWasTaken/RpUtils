@@ -11,7 +11,6 @@ using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using RpUtils.Services;
 using System.Timers;
-using Dalamud.Game.Gui.Dtr;
 using FFXIVClientStructs.FFXIV.Client.Game.Housing;
 
 namespace RpUtils.Controllers
@@ -22,7 +21,6 @@ namespace RpUtils.Controllers
         private ConnectionService connectionService;
         private ExcelSheet<Map> Maps { get; set; }
         private ExcelSheet<OnlineStatus> OnlineStatuses { get; set; }
-        private DtrBarEntry dtrBarEntry;
 
         private Timer positionCheckTimer;
         private Vector3 lastReportedPosition = Vector3.Zero;
@@ -49,19 +47,12 @@ namespace RpUtils.Controllers
             positionCheckTimer = new Timer(PositionCheckInterval);
             positionCheckTimer.Elapsed += CheckAndSubmitPlayerPosition;
             positionCheckTimer.AutoReset = true;
-
-            // Setting up our DTR bar entry
-            dtrBarEntry =  DalamudContainer.DtrBar.Get("RP Sonar");
-            UpdateDtr();
-            this.configuration.OnShowSonarDtrChanged += OnShowDtrChangedHandler;
-            
         }
 
         // Handler for our config change listener, we're just going to kick off the toggle
         public void OnConfigChangedHandler(object sender, EventArgs e)
         {
             ToggleSonar();
-            SetDtrText();
         }
 
         // Determines whether to toggle sonar on or off. We need the SonarEnabled, UtilsEnabled, and the ConnectionService to have a connection
@@ -232,31 +223,11 @@ namespace RpUtils.Controllers
             return Maps.GetRow(agent->SelectedMapId);
         }
 
-        public void OnShowDtrChangedHandler(object sender, EventArgs e)
-        {
-            dtrBarEntry.Shown = this.configuration.ShowSonarDtr;
-        }
-
-        private void UpdateDtr()
-        {
-            SetDtrText();
-            dtrBarEntry.OnClick = () => { this.configuration.SonarEnabled = !this.configuration.SonarEnabled; SetDtrText(); };
-            dtrBarEntry.Tooltip = "Click to toggle RP Sonar";
-        }
-
-        private void SetDtrText()
-        {
-            var isSonarActive = this.configuration.SonarEnabled && this.configuration.UtilsEnabled && this.connectionService.Connected;
-            dtrBarEntry.Text = $"RP: {(isSonarActive ? "On" : "Off")}";
-        }
-
-
         public void Dispose()
         {
             this.configuration.OnSonarEnabledChanged -= OnConfigChangedHandler;
             this.configuration.OnUtilsEnabledChanged -= OnConfigChangedHandler;
             this.connectionService.OnConnectionChange -= OnConfigChangedHandler;
-            this.configuration.OnShowSonarDtrChanged -= OnShowDtrChangedHandler;
             positionCheckTimer.Dispose();
         }
     }
