@@ -1,15 +1,12 @@
 ﻿namespace RpUtils.Models
 {
-    /// <summary>
-    /// Information about a locations in the game world players are roleplaying in.
-    /// </summary>
-    internal class WorldPlayerCount
-    {
-        /// <summary>
-        /// Gets or sets the world name.
-        /// </summary>
-        public string WorldName { get; set; }
+    using System.Collections.Generic;
 
+    /// <summary>
+    /// Play counts information for the "Roleplaying Now" display.
+    /// </summary>
+    internal class PlayerCountNode
+    {
         /// <summary>
         /// Gets or sets the location within the world.
         /// </summary>
@@ -19,5 +16,10 @@
         /// Gets or sets the currently active roleplay count.
         /// </summary>
         public int Count { get; set; }
+
+        /// <summary>
+        /// Gets the list of sub locations.
+        /// </summary>
+        public IEnumerable<PlayerCountNode> SubLocations { get; set;} = new List<PlayerCountNode>();
     }
 }

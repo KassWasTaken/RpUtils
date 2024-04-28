@@ -4,20 +4,24 @@ using Lumina.Excel.GeneratedSheets;
 using RpUtils.Models;
 using RpUtils.Services;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace RpUtils.UI.Tabs
 {
     public class CurrentRpTab
     {
+        // Column Indexes for Roleplayer Count Tabs
+        const short SortLocationColumnId = 0;
+        const short SortCountColumnId = 1;
+
         private ConnectionService connectionService;
-        private Dictionary<string, int> worldMapCounts = new Dictionary<string, int>();
-        private List<WorldPlayerCount> playerCountItems = new List<WorldPlayerCount>();
-        private IDictionary<string, int> playerCountWorlds = new Dictionary<string, int>();
+
+        // Player count tree nodes.
+        private IEnumerable<PlayerCountNode> playerCountNodes = new List<PlayerCountNode>();
+        private bool firstSort = true;
+        private DateTime? lastUpdated;
 
         private int currentWatchingForRpCount = 0;
         private ExcelSheet<Map> Maps { get; set; }
@@ -46,33 +50,60 @@ namespace RpUtils.UI.Tabs
                     }).ConfigureAwait(false);
                 }
 
+                if (this.lastUpdated != null)
+                {
+                    int minutes = (DateTime.Now - this.lastUpdated.Value).Minutes;
+                    ImGui.SameLine();
+                    if (minutes > 1)
+                    {
+                        ImGui.Text($" Last updated {minutes} minutes ago.");
+                    }
+                    else if (minutes == 1)
+                    {
+                        ImGui.Text($" Last updated {minutes} minute ago.");                    }
+                    else
+                    {
+                        ImGui.Text($" Last updated less than one minute ago.");
+                    }
+                }
+
                 ImGui.Text($"Currently watching for RP: {currentWatchingForRpCount}");
                 ImGui.Spacing();
-
+                
                 if (ImGui.BeginTable("roleplayerTableString", 2, ImGuiTableFlags.RowBg | ImGuiTableFlags.Sortable))
                 {
-                    ImGui.TableSetupColumn("Location", ImGuiTableColumnFlags.NoReorder);
+                    ImGui.TableSetupColumn("Location", ImGuiTableColumnFlags.NoReorder | ImGuiTableColumnFlags.DefaultSort);
                     ImGui.TableSetupColumn("Current Roleplayers", ImGuiTableColumnFlags.NoReorder);
+                    ImGuiTableSortSpecsPtr? specs = ImGui.TableGetSortSpecs();
+
+                    // First sort is here since the table remembers it's last sort options but is not 'dirty' on load so we want to force the sorting on first rendering.
+                    if (firstSort || (specs != null && specs.Value.SpecsDirty && specs.Value.SpecsCount != default))
+                    {
+                        this.playerCountNodes = this.OrderPlayerCountNodes(this.playerCountNodes, specs);
+                        specs.Value.SpecsDirty = false;
+                        firstSort = false;
+                    }
+
                     ImGui.TableHeadersRow();
 
-                    foreach (KeyValuePair<string, int> worldCountItem in this.playerCountWorlds)
+                    // TODO: Extract into a "Render Node" function when we do more than one layer of branch nodes.
+                    foreach (var node in this.playerCountNodes)
                     {
                         ImGui.TableNextRow();
                         ImGui.TableNextColumn();
-                        bool open = ImGui.TreeNodeEx(worldCountItem.Key, ImGuiTreeNodeFlags.DefaultOpen);
+                        bool open = ImGui.TreeNodeEx(node.Location, ImGuiTreeNodeFlags.DefaultOpen);
                         ImGui.TableNextColumn();
-                        ImGui.Text(worldCountItem.Value.ToString());
+                        ImGui.Text(node.Count.ToString());
 
-                        if (open)
+                        if (open && node.SubLocations.Count() != default)
                         {
-                            var currentNodes = this.playerCountItems.Where(x => x.WorldName == worldCountItem.Key).OrderBy(x => x.Location);
-                            foreach (var currentNode in currentNodes)
+                            foreach (var subNode in node.SubLocations)
                             {
                                 ImGui.TableNextRow();
                                 ImGui.TableNextColumn();
-                                ImGui.TreeNodeEx(currentNode.Location, ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen);
+                                ImGui.TreeNodeEx(subNode.Location, ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen);
                                 ImGui.TableNextColumn();
-                                ImGui.Text(currentNode.Count.ToString());
+                                ImGui.Text(subNode.Count.ToString());
                             }
                             ImGui.TreePop();
                         }
@@ -86,7 +117,6 @@ namespace RpUtils.UI.Tabs
         {
             DalamudContainer.PluginLog.Debug("Fetching world map counts");
             var rawWorldMapCounts = await connectionService.InvokeHubMethodAsync<Dictionary<string, int>>("GetWorldMapCounts");
-            var translatedWorldMapCounts = new Dictionary<string, int>();
             List<WorldPlayerCount> newCounts = new List<WorldPlayerCount>();
 
             foreach (var entry in rawWorldMapCounts)
@@ -99,7 +129,6 @@ namespace RpUtils.UI.Tabs
 
                     string translatedWorld = Worlds.GetRow(rawWorld).Name.ToString();
                     string translatedMap = Maps.Where(map => map.Id == rawMap).FirstOrDefault()?.PlaceName.Value.Name.ToString() ?? rawMap;
-                    translatedWorldMapCounts[$"{translatedWorld} - {translatedMap}"] = entry.Value;
 
                     newCounts.Add(new WorldPlayerCount()
                     {
@@ -110,12 +139,93 @@ namespace RpUtils.UI.Tabs
                 }
             }
 
-            worldMapCounts = translatedWorldMapCounts;
-            playerCountItems = newCounts;
-            playerCountWorlds = newCounts
+            var nodes = this.GetPlayerCountNodes(newCounts);
+            this.playerCountNodes = this.OrderPlayerCountNodes(nodes, null);
+            this.lastUpdated = DateTime.Now;
+        }
+
+        /// <summary>
+        /// Split the world player counts into nodes for rendering
+        /// </summary>
+        private IEnumerable<PlayerCountNode> GetPlayerCountNodes(List<WorldPlayerCount> worldPlayerCounts)
+        {
+            var countTreeNodes = worldPlayerCounts
                 .GroupBy(nc => nc.WorldName)
-                .Select(x => new KeyValuePair<string, int>(x.Key, x.Sum(s => s.Count)))
-                .ToDictionary();
+                .Select(x => new PlayerCountNode()
+                {
+                    Location = x.Key,
+                    Count = x.Sum(s => s.Count),
+                    SubLocations = x.Select(worldCount => new PlayerCountNode()
+                    {
+                        Location = worldCount.Location,
+                        Count = worldCount.Count,
+                    }).ToList()
+                })
+                .ToList();
+
+            return countTreeNodes;
+        }
+
+        /// <summary>
+        /// Order world player counts first by world information, then internally by zone.
+        /// </summary>
+        private IEnumerable<PlayerCountNode> OrderPlayerCountNodes(IEnumerable<PlayerCountNode> source, ImGuiTableSortSpecsPtr? sortSpecs)
+        {
+            // There is probably a far more elegant way to do this.  We'll figure that out when we get more thigns to sort.
+            IEnumerable<PlayerCountNode> nodes;
+            bool byLocation = true;
+            bool descending = true;
+
+            if (sortSpecs != null && sortSpecs.Value.SpecsCount > 0 && sortSpecs.Value.Specs.SortDirection == ImGuiSortDirection.Descending)
+            {
+                descending = false;
+            }
+
+            if (sortSpecs != null && sortSpecs.Value.SpecsCount > 0 && sortSpecs.Value.Specs.ColumnIndex == SortCountColumnId)
+            {
+                byLocation = false;
+            }
+
+            if (byLocation)
+            {
+                if (descending)
+                {
+                    nodes = source.OrderByDescending(x => x.Location);
+                    foreach (var node in nodes)
+                    {
+                        node.SubLocations = node.SubLocations.OrderByDescending(x => x.Location);
+                    }
+                }
+                else
+                {
+                    nodes = source.OrderBy(x => x.Location);
+                    foreach (var node in nodes)
+                    {
+                        node.SubLocations = node.SubLocations.OrderBy(x => x.Location);
+                    }
+                }
+            }
+            else
+            {
+                if (descending)
+                {
+                    nodes = source.OrderByDescending(x => x.Count);
+                    foreach (var node in nodes)
+                    {
+                        node.SubLocations = node.SubLocations.OrderByDescending(x => x.Count);
+                    }
+                }
+                else
+                {
+                    nodes = source.OrderBy(x => x.Count);
+                    foreach (var node in nodes)
+                    {
+                        node.SubLocations = node.SubLocations.OrderBy(x => x.Count);
+                    }
+                }
+            }
+
+            return nodes.ToList();
         }
 
         public async Task FetchCurrentWatchingForRpCount()
