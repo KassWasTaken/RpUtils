@@ -28,8 +28,8 @@ namespace RpUtils.Controllers
         private const float DistanceThreshold = 5.0f;
         private const int PositionCheckInterval = 10000;
         private bool WasRoleplaying = false;
+        private bool previouslyNotifiedSharingLocation = false;
 
-        
         public SonarController(Configuration configuration, ConnectionService connectionService) 
         {
             this.configuration = configuration;
@@ -119,7 +119,6 @@ namespace RpUtils.Controllers
 
         private unsafe void OpenRpMap(List<Position> positions)
         {
-            IsPlayerInHousingDistract();
             var agent = AgentMap.Instance();
             DalamudContainer.PluginLog.Debug($"Agent Map Id: {agent->SelectedMapId}");
             // TODO Do we need to be careful about clearing map markers? Can we remove specifically the ones we've added?
@@ -147,7 +146,7 @@ namespace RpUtils.Controllers
                 // If we're in a housing district, we want to check if we were previously reported as being in a housing district
                 // If we weren't, then we want to remove the location data since we're no longer reporting in this zone. If we were
                 // already reported as being in a housing district, we don't need to do anything
-                if (IsPlayerInHousingDistract())
+                if (IsPlayerInHousingDistrict())
                 {
                     if (!lastReportedInHousing)
                     {
@@ -164,7 +163,25 @@ namespace RpUtils.Controllers
             }
         }
 
-        private unsafe bool IsPlayerInHousingDistract()
+        private void NotifySharingLocation()
+        {
+            if (previouslyNotifiedSharingLocation) { return; }
+
+            var notification = new Dalamud.Interface.ImGuiNotification.Notification();
+            notification.Content = "You are now anonymously sharing your location with RpUtils. If this is a private roleplay scene, please turn off the sonar.";
+            DalamudContainer.NotificationManager.AddNotification(notification);
+            previouslyNotifiedSharingLocation = true;
+        }
+
+        private void NotifyNotSharing()
+        {
+            var notification = new Dalamud.Interface.ImGuiNotification.Notification();
+            notification.Content = "You are no longer sharing your location with RpUtils.";
+            DalamudContainer.NotificationManager.AddNotification(notification);
+            previouslyNotifiedSharingLocation = false;
+        }
+
+        private unsafe bool IsPlayerInHousingDistrict()
         {
             var agent = HousingManager.Instance();
             var currentWard = agent->GetCurrentWard();
@@ -185,6 +202,7 @@ namespace RpUtils.Controllers
                 if (!isRoleplaying)
                 {
                     connectionService.InvokeHubMethodAsync("RemoveLocationData");
+                    NotifyNotSharing();
                 }
             }
             return isRoleplaying;
@@ -201,6 +219,11 @@ namespace RpUtils.Controllers
 
         private async Task SendLocationToServer(PlayerCharacter player)
         {
+            if (!previouslyNotifiedSharingLocation)
+            {
+                NotifySharingLocation();
+            }
+
             DalamudContainer.PluginLog.Debug("Sending location to server");
             var map = GetCurrentMap();
             DalamudContainer.PluginLog.Debug($"Sending location to server {map.Id.RawString}");

@@ -8,8 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+	- Notifications for when player is and isn't sharing location with server
 
 ### Changed
+	- Updated label for the DtrEntry
 
 ### Removed
 

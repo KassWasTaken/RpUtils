@@ -47,7 +47,7 @@ namespace RpUtils.Services
         {
             SetDtrText();
             dtrBarEntry.OnClick = () => { this.mainWindow.Toggle(); };
-            dtrBarEntry.Tooltip = "Click to toggle RP Sonar";
+            dtrBarEntry.Tooltip = "Click to open RP Utils";
         }
 
         private void SetDtrText()
