@@ -1,6 +1,7 @@
 ﻿using ImGuiNET;
 using Lumina.Excel;
 using Lumina.Excel.GeneratedSheets;
+using RpUtils.Models;
 using RpUtils.Services;
 using System;
 using System.Collections;
@@ -15,6 +16,9 @@ namespace RpUtils.UI.Tabs
     {
         private ConnectionService connectionService;
         private Dictionary<string, int> worldMapCounts = new Dictionary<string, int>();
+        private List<WorldPlayerCount> playerCountItems = new List<WorldPlayerCount>();
+        private IDictionary<string, int> playerCountWorlds = new Dictionary<string, int>();
+
         private int currentWatchingForRpCount = 0;
         private ExcelSheet<Map> Maps { get; set; }
         private ExcelSheet<World> Worlds { get; set; }
@@ -43,33 +47,38 @@ namespace RpUtils.UI.Tabs
                 }
 
                 ImGui.Text($"Currently watching for RP: {currentWatchingForRpCount}");
+                ImGui.Spacing();
 
-                if (ImGui.BeginTable("Roleplayers Found", 2, ImGuiTableFlags.Resizable | ImGuiTableFlags.Reorderable | ImGuiTableFlags.Sortable))
+                if (ImGui.BeginTable("roleplayerTableString", 2, ImGuiTableFlags.RowBg | ImGuiTableFlags.Sortable))
                 {
-                    // Define the table's column headers
-                    ImGui.TableSetupColumn("World - Map");
-                    ImGui.TableSetupColumn("Current Roleplayers");
+                    ImGui.TableSetupColumn("Location", ImGuiTableColumnFlags.NoReorder);
+                    ImGui.TableSetupColumn("Current Roleplayers", ImGuiTableColumnFlags.NoReorder);
                     ImGui.TableHeadersRow();
 
-                    foreach (var entry in worldMapCounts)
+                    foreach (KeyValuePair<string, int> worldCountItem in this.playerCountWorlds)
                     {
                         ImGui.TableNextRow();
-
-                        // Column 1: World - Map
                         ImGui.TableNextColumn();
-                        ImGui.Text(entry.Key);
-
-                        // Column 2: Count
+                        bool open = ImGui.TreeNodeEx(worldCountItem.Key, ImGuiTreeNodeFlags.DefaultOpen);
                         ImGui.TableNextColumn();
-                        ImGui.Text(entry.Value.ToString());
+                        ImGui.Text(worldCountItem.Value.ToString());
+
+                        if (open)
+                        {
+                            var currentNodes = this.playerCountItems.Where(x => x.WorldName == worldCountItem.Key).OrderBy(x => x.Location);
+                            foreach (var currentNode in currentNodes)
+                            {
+                                ImGui.TableNextRow();
+                                ImGui.TableNextColumn();
+                                ImGui.TreeNodeEx(currentNode.Location, ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen);
+                                ImGui.TableNextColumn();
+                                ImGui.Text(currentNode.Count.ToString());
+                            }
+                            ImGui.TreePop();
+                        }
                     }
-
-                    // End the table
                     ImGui.EndTable();
                 }
-
-
-                ImGui.EndTabItem();
             }
         }
 
@@ -78,6 +87,7 @@ namespace RpUtils.UI.Tabs
             DalamudContainer.PluginLog.Debug("Fetching world map counts");
             var rawWorldMapCounts = await connectionService.InvokeHubMethodAsync<Dictionary<string, int>>("GetWorldMapCounts");
             var translatedWorldMapCounts = new Dictionary<string, int>();
+            List<WorldPlayerCount> newCounts = new List<WorldPlayerCount>();
 
             foreach (var entry in rawWorldMapCounts)
             {
@@ -90,10 +100,22 @@ namespace RpUtils.UI.Tabs
                     string translatedWorld = Worlds.GetRow(rawWorld).Name.ToString();
                     string translatedMap = Maps.Where(map => map.Id == rawMap).FirstOrDefault()?.PlaceName.Value.Name.ToString() ?? rawMap;
                     translatedWorldMapCounts[$"{translatedWorld} - {translatedMap}"] = entry.Value;
+
+                    newCounts.Add(new WorldPlayerCount()
+                    {
+                        WorldName = translatedWorld,
+                        Location = translatedMap,
+                        Count = entry.Value,
+                    });
                 }
             }
 
             worldMapCounts = translatedWorldMapCounts;
+            playerCountItems = newCounts;
+            playerCountWorlds = newCounts
+                .GroupBy(nc => nc.WorldName)
+                .Select(x => new KeyValuePair<string, int>(x.Key, x.Sum(s => s.Count)))
+                .ToDictionary();
         }
 
         public async Task FetchCurrentWatchingForRpCount()
