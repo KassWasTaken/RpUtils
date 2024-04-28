@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 	- Rewrote existing UI to make use of WindowSystem, and split into tabs
+	- Extracted DtrEntry from SonarController into a service, now opens to the RpUtils window
 
 ## [v0.1.0]
 
