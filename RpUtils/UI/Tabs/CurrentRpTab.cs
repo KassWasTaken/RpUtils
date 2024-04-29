@@ -163,6 +163,7 @@ namespace RpUtils.UI.Tabs
                 })
                 .ToList();
 
+            this.firstSort = true;
             return countTreeNodes;
         }
 
@@ -176,7 +177,7 @@ namespace RpUtils.UI.Tabs
             bool byLocation = true;
             bool descending = true;
 
-            if (sortSpecs != null && sortSpecs.Value.SpecsCount > 0 && sortSpecs.Value.Specs.SortDirection == ImGuiSortDirection.Descending)
+            if (sortSpecs != null && sortSpecs.Value.SpecsCount > 0 && sortSpecs.Value.Specs.SortDirection == ImGuiSortDirection.Ascending)
             {
                 descending = false;
             }
