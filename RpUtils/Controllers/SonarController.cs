@@ -12,6 +12,7 @@ using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using RpUtils.Services;
 using System.Timers;
 using FFXIVClientStructs.FFXIV.Client.Game.Housing;
+using System.Linq;
 
 namespace RpUtils.Controllers
 {
@@ -20,6 +21,7 @@ namespace RpUtils.Controllers
         private Configuration configuration;
         private ConnectionService connectionService;
         private ExcelSheet<Map> Maps { get; set; }
+        private ExcelSheet<TerritoryType> TerritoryTypes { get; set; }
         private ExcelSheet<OnlineStatus> OnlineStatuses { get; set; }
 
         private Timer positionCheckTimer;
@@ -31,12 +33,16 @@ namespace RpUtils.Controllers
         private bool previouslyNotifiedSharingLocation = false;
         private bool amIBrodcastingLocation = false;
 
+        // 0 = cities, 1 = overworld, 7 = map-ish zones?, 13 = housing zone, 23 = goldsaucer, 26/47 = diadem, 41 = eureka, 48 = bozja
+        private int[] allowedTerritoryIntendedUses = [0, 1, 7, 23, 26, 47, 41, 48];
+
         public SonarController(Configuration configuration, ConnectionService connectionService)
         {
             this.configuration = configuration;
             this.connectionService = connectionService;
 
             Maps = DalamudContainer.DataManager.GetExcelSheet<Map>()!;
+            TerritoryTypes = DalamudContainer.DataManager.GetExcelSheet<TerritoryType>()!;
             OnlineStatuses = DalamudContainer.DataManager.GetExcelSheet<OnlineStatus>()!;
 
             // Adding our subscriber for when the SonarEnabled configuration changes
@@ -144,6 +150,10 @@ namespace RpUtils.Controllers
             bool isPvpNotInWolvesDen = DalamudContainer.ClientState.IsPvPExcludingDen;
             bool isRoleplaying = false;
             bool isInHousingDistrict = this.IsPlayerInHousingDistrict();
+            
+            bool isInAllowedTerritoryIntendedUse = allowedTerritoryIntendedUses.Contains(int.Parse(TerritoryTypes.GetRow(DalamudContainer.ClientState.TerritoryType).TerritoryIntendedUse.ToString()));
+            DalamudContainer.PluginLog.Debug($"TerritoryIntendedUse: {TerritoryTypes.GetRow(DalamudContainer.ClientState.TerritoryType).TerritoryIntendedUse.ToString()} isAllowed: {isInAllowedTerritoryIntendedUse}");
+
             if (player != null)
             {
                 isRoleplaying = this.IsPlayerRoleplaying(player.OnlineStatus.GameData.Name);
@@ -152,7 +162,7 @@ namespace RpUtils.Controllers
             // Handle fail conditions that can cause is to have to remove location data.
             if (amIBrodcastingLocation)
             {
-                if (player == null || !isLoggedIn || isPvpNotInWolvesDen || !isRoleplaying || isInHousingDistrict)
+                if (player == null || !isLoggedIn || isPvpNotInWolvesDen || !isRoleplaying || isInHousingDistrict || !isInAllowedTerritoryIntendedUse)
                 {
                     this.RemoveLocationFromServer();
                     return;
