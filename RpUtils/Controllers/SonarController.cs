@@ -29,15 +29,16 @@ namespace RpUtils.Controllers
         private const int PositionCheckInterval = 10000;
         private bool WasRoleplaying = false;
         private bool previouslyNotifiedSharingLocation = false;
+        private bool amIBrodcastingLocation = false;
 
-        public SonarController(Configuration configuration, ConnectionService connectionService) 
+        public SonarController(Configuration configuration, ConnectionService connectionService)
         {
             this.configuration = configuration;
             this.connectionService = connectionService;
 
             Maps = DalamudContainer.DataManager.GetExcelSheet<Map>()!;
             OnlineStatuses = DalamudContainer.DataManager.GetExcelSheet<OnlineStatus>()!;
-            
+
             // Adding our subscriber for when the SonarEnabled configuration changes
             this.configuration.OnSonarEnabledChanged += OnConfigChangedHandler;
             this.configuration.OnUtilsEnabledChanged += OnConfigChangedHandler;
@@ -108,7 +109,7 @@ namespace RpUtils.Controllers
             }
         }
 
-        
+
 
         // TODO Do we need to be careful about clearing map markers? Can we remove specifically the ones we've added?
         private unsafe void ClearMapMarkers()
@@ -138,28 +139,48 @@ namespace RpUtils.Controllers
 
         private void CheckAndSubmitPlayerPosition(Object source, ElapsedEventArgs e)
         {
-            var player = DalamudContainer.ClientState.LocalPlayer;
-
-            // Player needs to have moved and needs to be roleplaying
-            if (HasPlayerMoved(player.Position) && IsPlayerRoleplaying(player.OnlineStatus.GameData.Name))
+            PlayerCharacter? player = DalamudContainer.ClientState.LocalPlayer;
+            bool isLoggedIn = DalamudContainer.ClientState.IsLoggedIn;
+            bool isPvpNotInWolvesDen = DalamudContainer.ClientState.IsPvPExcludingDen;
+            bool isRoleplaying = false;
+            bool isInHousingDistrict = this.IsPlayerInHousingDistrict();
+            if (player != null)
             {
-                // If we're in a housing district, we want to check if we were previously reported as being in a housing district
-                // If we weren't, then we want to remove the location data since we're no longer reporting in this zone. If we were
-                // already reported as being in a housing district, we don't need to do anything
-                if (IsPlayerInHousingDistrict())
-                {
-                    if (!lastReportedInHousing)
-                    {
-                        lastReportedInHousing = true;
-                        connectionService.InvokeHubMethodAsync("RemoveLocationData");
-                    }
-                } else
-                {
-                    lastReportedInHousing = false;
-                    SendLocationToServer(player);
-                }
+                isRoleplaying = this.IsPlayerRoleplaying(player.OnlineStatus.GameData.Name);
+            }
 
-                
+            // Handle fail conditions that can cause is to have to remove location data.
+            if (amIBrodcastingLocation)
+            {
+                if (player == null || !isLoggedIn || isPvpNotInWolvesDen || !isRoleplaying || isInHousingDistrict)
+                {
+                    this.RemoveLocationFromServer();
+                    return;
+                }
+            }
+
+            if (player != null)
+            {
+                // Player needs to have moved and needs to be roleplaying
+                if (HasPlayerMoved(player.Position) && IsPlayerRoleplaying(player.OnlineStatus.GameData.Name))
+                {
+                    // If we're in a housing district, we want to check if we were previously reported as being in a housing district
+                    // If we weren't, then we want to remove the location data since we're no longer reporting in this zone. If we were
+                    // already reported as being in a housing district, we don't need to do anything
+                    if (isInHousingDistrict)
+                    {
+                        if (!lastReportedInHousing)
+                        {
+                            lastReportedInHousing = true;
+                            this.RemoveLocationFromServer();
+                        }
+                    }
+                    else
+                    {
+                        lastReportedInHousing = false;
+                        SendLocationToServer(player);
+                    }
+                }
             }
         }
 
@@ -201,8 +222,7 @@ namespace RpUtils.Controllers
                 // If we WERE roleplaying and now we're not, we just want to clean up our position from the cache
                 if (!isRoleplaying)
                 {
-                    connectionService.InvokeHubMethodAsync("RemoveLocationData");
-                    NotifyNotSharing();
+                    this.RemoveLocationFromServer();
                 }
             }
             return isRoleplaying;
@@ -216,6 +236,16 @@ namespace RpUtils.Controllers
             }
             return false;
         }
+
+        private async Task RemoveLocationFromServer()
+        {
+            DalamudContainer.PluginLog.Debug("Removing location from server");
+            await connectionService.InvokeHubMethodAsync("RemoveLocationData");
+            this.amIBrodcastingLocation = false;
+            this.previouslyNotifiedSharingLocation = false;
+            NotifyNotSharing();
+        }
+
 
         private async Task SendLocationToServer(PlayerCharacter player)
         {
@@ -232,6 +262,8 @@ namespace RpUtils.Controllers
                 map.Id.RawString,
                 player.Position.X + map.OffsetX,
                 player.Position.Z + map.OffsetY);
+
+            this.amIBrodcastingLocation = true;
         }
 
         private unsafe Map GetCurrentMap()
