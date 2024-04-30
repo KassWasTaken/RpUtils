@@ -128,7 +128,12 @@ namespace RpUtils.UI.Tabs
                     string rawMap = parts[2];
 
                     string translatedWorld = Worlds.GetRow(rawWorld).Name.ToString();
-                    string translatedMap = Maps.Where(map => map.Id == rawMap).FirstOrDefault()?.PlaceName.Value.Name.ToString() ?? rawMap;
+                    string translatedMap = Maps.Where(map => map.Id == rawMap).FirstOrDefault()?.PlaceName.Value.Name.ToString();
+                    string subMap = Maps.Where(map => map.Id == rawMap).FirstOrDefault()?.PlaceNameSub.Value.Name.ToString();
+                    if (subMap != "")
+                    {
+                        translatedMap += " - " + subMap;
+                    }
 
                     newCounts.Add(new WorldPlayerCount()
                     {

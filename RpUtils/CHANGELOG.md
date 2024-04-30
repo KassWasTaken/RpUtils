@@ -10,10 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Changed
-	- Roleplaying location will now be removed if the user logs out or in a PVP mode outside of Wolve's Den.
-	- Added checks against TerritoryIntendedUse to prevent reporting locations from places we don't want
 
 ### Removed
+
+## [0.2.2]
+
+### Changed
+	- Roleplaying location will now be removed if the user logs out or in a PVP mode outside of Wolve's Den.
+	- Added checks against TerritoryIntendedUse to prevent reporting locations from places we don't want
+	- Added sub region names to Rp now tab
 
 ## [0.2.1]
 
