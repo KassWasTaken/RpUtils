@@ -172,7 +172,7 @@ namespace RpUtils.Controllers
             if (player != null)
             {
                 // Player needs to have moved and needs to be roleplaying
-                if (HasPlayerMoved(player.Position) && IsPlayerRoleplaying(player.OnlineStatus.GameData.Name))
+                if (HasPlayerMoved(player.Position) && IsPlayerRoleplaying(player.OnlineStatus.GameData.Name) && isInAllowedTerritoryIntendedUse)
                 {
                     // If we're in a housing district, we want to check if we were previously reported as being in a housing district
                     // If we weren't, then we want to remove the location data since we're no longer reporting in this zone. If we were
