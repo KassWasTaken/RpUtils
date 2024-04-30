@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Changed
+	- Roleplaying location will now be removed if the user logs out or in a PVP mode outside of Wolve's Den.
 
 ### Removed
 
