@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Changed
-
+    - feat. RP Now tab now rolls up maps with sublocations like Steps of Thal and Eulmore.
 ### Removed
 
 ## [0.2.2]
