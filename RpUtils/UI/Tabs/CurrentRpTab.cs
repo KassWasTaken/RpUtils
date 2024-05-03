@@ -1,4 +1,5 @@
 ﻿using ImGuiNET;
+using Lumina.Data.Parsing.Scd;
 using Lumina.Excel;
 using Lumina.Excel.GeneratedSheets;
 using RpUtils.Models;
@@ -89,27 +90,47 @@ namespace RpUtils.UI.Tabs
                     // TODO: Extract into a "Render Node" function when we do more than one layer of branch nodes.
                     foreach (var node in this.playerCountNodes)
                     {
-                        ImGui.TableNextRow();
-                        ImGui.TableNextColumn();
-                        bool open = ImGui.TreeNodeEx(node.Location, ImGuiTreeNodeFlags.DefaultOpen);
-                        ImGui.TableNextColumn();
-                        ImGui.Text(node.Count.ToString());
-
-                        if (open && node.SubLocations.Count() != default)
-                        {
-                            foreach (var subNode in node.SubLocations)
-                            {
-                                ImGui.TableNextRow();
-                                ImGui.TableNextColumn();
-                                ImGui.TreeNodeEx(subNode.Location, ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen);
-                                ImGui.TableNextColumn();
-                                ImGui.Text(subNode.Count.ToString());
-                            }
-                            ImGui.TreePop();
-                        }
+                        int depth = 0;
+                        this.BuildNode(node, depth);
                     }
                     ImGui.EndTable();
                 }
+
+                ImGui.EndTabItem();
+            }
+        }
+
+        private void BuildNode(PlayerCountNode node, int depth)
+        {
+            const int maxDepth = 5;
+
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            bool open = ImGui.TreeNodeEx(node.Location, ImGuiTreeNodeFlags.DefaultOpen);
+            ImGui.TableNextColumn();
+            ImGui.Text(node.Count.ToString());
+
+            if (open)
+            {
+                if (node.SubLocations.Count() != default)
+                {
+                    foreach (var subNode in node.SubLocations)
+                    {
+                        if (subNode.SubLocations.Count() != default && depth < maxDepth)
+                        {
+                            this.BuildNode(subNode, depth + 1);
+                        }
+                        else
+                        {
+                            ImGui.TableNextRow();
+                            ImGui.TableNextColumn();
+                            ImGui.TreeNodeEx(subNode.Location, ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen);
+                            ImGui.TableNextColumn();
+                            ImGui.Text(subNode.Count.ToString());
+                        }
+                    }
+                }
+                ImGui.TreePop();
             }
         }
 
@@ -130,23 +151,20 @@ namespace RpUtils.UI.Tabs
                     string translatedWorld = Worlds.GetRow(rawWorld).Name.ToString();
                     string translatedMap = Maps.Where(map => map.Id == rawMap).FirstOrDefault()?.PlaceName.Value.Name.ToString();
                     string subMap = Maps.Where(map => map.Id == rawMap).FirstOrDefault()?.PlaceNameSub.Value.Name.ToString();
-                    if (subMap != "")
-                    {
-                        translatedMap += " - " + subMap;
-                    }
 
                     newCounts.Add(new WorldPlayerCount()
                     {
                         WorldName = translatedWorld,
                         Location = translatedMap,
+                        Sublocation = subMap,
                         Count = entry.Value,
                     });
                 }
             }
 
-            var nodes = this.GetPlayerCountNodes(newCounts);
-            this.playerCountNodes = this.OrderPlayerCountNodes(nodes, null);
+            this.playerCountNodes = this.GetPlayerCountNodes(newCounts);
             this.lastUpdated = DateTime.Now;
+            this.firstSort = true;
         }
 
         /// <summary>
@@ -154,28 +172,75 @@ namespace RpUtils.UI.Tabs
         /// </summary>
         private IEnumerable<PlayerCountNode> GetPlayerCountNodes(List<WorldPlayerCount> worldPlayerCounts)
         {
-            var countTreeNodes = worldPlayerCounts
-                .GroupBy(nc => nc.WorldName)
-                .Select(x => new PlayerCountNode()
+            List<PlayerCountNode> nodes = new List<PlayerCountNode>();
+            foreach (var worldPlayerCount in worldPlayerCounts)
+            {
+                // Search for existing base world node.
+                PlayerCountNode? worldNode = nodes.Where(x => x.Location == worldPlayerCount.WorldName).FirstOrDefault();
+                if (worldNode == null)
                 {
-                    Location = x.Key,
-                    Count = x.Sum(s => s.Count),
-                    SubLocations = x.Select(worldCount => new PlayerCountNode()
+                    worldNode = new PlayerCountNode()
                     {
-                        Location = worldCount.Location,
-                        Count = worldCount.Count,
-                    }).ToList()
-                })
-                .ToList();
+                       Location = worldPlayerCount.WorldName,
+                    };
+                    nodes.Add(worldNode);
+                }
 
-            this.firstSort = true;
-            return countTreeNodes;
+                worldNode.Count += worldPlayerCount.Count;
+                PlayerCountNode? locationNode = worldNode.SubLocations.Where(x => x.Location == worldPlayerCount.Location).FirstOrDefault();
+                if (locationNode == null)
+                {
+                    locationNode = new PlayerCountNode()
+                    {
+                        Location = worldPlayerCount.Location,
+                    };
+                    worldNode.SubLocations.Add(locationNode);
+                }
+                else
+                {
+                    // If we have no sublocation, but a location node already exists for this location, add as a sublocation node.
+                    if (worldPlayerCount.Sublocation == string.Empty)
+                    {
+                        locationNode.Count += worldPlayerCount.Count;
+                        locationNode.SubLocations.Add(new PlayerCountNode()
+                        {
+                            Location = worldPlayerCount.Location,
+                            Count = worldPlayerCount.Count,
+                        });
+                    }
+                }
+
+                locationNode.Count += worldPlayerCount.Count;
+
+                if (worldPlayerCount.Sublocation != string.Empty)
+                {
+                    // If we have a sublocation node, but the location already exists, add it as a location node.
+                    if (locationNode.SubLocations.Count == 0 && locationNode.SubLocations.Count > 0)
+                    {
+                        locationNode.SubLocations.Add(new PlayerCountNode()
+                        {
+                            Location = locationNode.Location,
+                            Count = locationNode.Count,
+                        });
+                    }
+
+                    // Add the sublocation node.
+                    locationNode.SubLocations.Add(new PlayerCountNode()
+                    {
+                        Location = worldPlayerCount.Sublocation,
+                        Count = worldPlayerCount.Count,
+                    });
+                }
+
+            }
+            return nodes;
         }
+
 
         /// <summary>
         /// Order world player counts first by world information, then internally by zone.
         /// </summary>
-        private IEnumerable<PlayerCountNode> OrderPlayerCountNodes(IEnumerable<PlayerCountNode> source, ImGuiTableSortSpecsPtr? sortSpecs)
+        private IList<PlayerCountNode> OrderPlayerCountNodes(IEnumerable<PlayerCountNode> source, ImGuiTableSortSpecsPtr? sortSpecs)
         {
             // There is probably a far more elegant way to do this.  We'll figure that out when we get more thigns to sort.
             IEnumerable<PlayerCountNode> nodes;
@@ -199,7 +264,7 @@ namespace RpUtils.UI.Tabs
                     nodes = source.OrderByDescending(x => x.Location);
                     foreach (var node in nodes)
                     {
-                        node.SubLocations = node.SubLocations.OrderByDescending(x => x.Location);
+                        node.SubLocations = this.OrderPlayerCountNodes(node.SubLocations, sortSpecs);
                     }
                 }
                 else
@@ -207,7 +272,7 @@ namespace RpUtils.UI.Tabs
                     nodes = source.OrderBy(x => x.Location);
                     foreach (var node in nodes)
                     {
-                        node.SubLocations = node.SubLocations.OrderBy(x => x.Location);
+                        node.SubLocations = this.OrderPlayerCountNodes(node.SubLocations, sortSpecs);
                     }
                 }
             }
@@ -218,7 +283,7 @@ namespace RpUtils.UI.Tabs
                     nodes = source.OrderByDescending(x => x.Count);
                     foreach (var node in nodes)
                     {
-                        node.SubLocations = node.SubLocations.OrderByDescending(x => x.Count);
+                        node.SubLocations = this.OrderPlayerCountNodes(node.SubLocations, sortSpecs);
                     }
                 }
                 else
@@ -226,7 +291,7 @@ namespace RpUtils.UI.Tabs
                     nodes = source.OrderBy(x => x.Count);
                     foreach (var node in nodes)
                     {
-                        node.SubLocations = node.SubLocations.OrderBy(x => x.Count);
+                        node.SubLocations = this.OrderPlayerCountNodes(node.SubLocations, sortSpecs);
                     }
                 }
             }

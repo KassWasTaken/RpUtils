@@ -20,6 +20,6 @@
         /// <summary>
         /// Gets the list of sub locations.
         /// </summary>
-        public IEnumerable<PlayerCountNode> SubLocations { get; set;} = new List<PlayerCountNode>();
+        public IList<PlayerCountNode> SubLocations { get; set;} = new List<PlayerCountNode>();
     }
 }
