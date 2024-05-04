@@ -18,6 +18,11 @@
         public int Count { get; set; }
 
         /// <summary>
+        /// Gets or sets the map identifier.
+        /// </summary>
+        public uint MapId { get; set; }
+
+        /// <summary>
         /// Gets the list of sub locations.
         /// </summary>
         public IList<PlayerCountNode> SubLocations { get; set;} = new List<PlayerCountNode>();
