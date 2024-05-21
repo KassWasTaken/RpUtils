@@ -21,6 +21,11 @@
         public string Sublocation { get; set; }
 
         /// <summary>
+        /// Gets or sets the map identifier.
+        /// </summary>
+        public uint MapId { get; set; }
+
+        /// <summary>
         /// Gets or sets the currently active roleplay count.
         /// </summary>
         public int Count { get; set; }

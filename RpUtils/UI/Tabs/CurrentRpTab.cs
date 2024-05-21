@@ -1,13 +1,14 @@
-﻿using ImGuiNET;
-using Lumina.Data.Parsing.Scd;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+
+using FFXIVClientStructs.FFXIV.Client.UI.Agent;
+using ImGuiNET;
 using Lumina.Excel;
 using Lumina.Excel.GeneratedSheets;
 using RpUtils.Models;
 using RpUtils.Services;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace RpUtils.UI.Tabs
 {
@@ -27,6 +28,7 @@ namespace RpUtils.UI.Tabs
         private int currentWatchingForRpCount = 0;
         private ExcelSheet<Map> Maps { get; set; }
         private ExcelSheet<World> Worlds { get; set; }
+        private string currentWorldName => DalamudContainer.ClientState?.LocalPlayer?.CurrentWorld?.GameData.Name ?? string.Empty;
 
         public CurrentRpTab(ConnectionService connectionService)
         {
@@ -70,7 +72,7 @@ namespace RpUtils.UI.Tabs
 
                 ImGui.Text($"Currently watching for RP: {currentWatchingForRpCount}");
                 ImGui.Spacing();
-                
+
                 if (ImGui.BeginTable("roleplayerTableString", 2, ImGuiTableFlags.RowBg | ImGuiTableFlags.Sortable))
                 {
                     ImGui.TableSetupColumn("Location", ImGuiTableColumnFlags.NoReorder | ImGuiTableColumnFlags.DefaultSort);
@@ -87,11 +89,13 @@ namespace RpUtils.UI.Tabs
 
                     ImGui.TableHeadersRow();
 
+                    int buttonId = 1;
+
                     // TODO: Extract into a "Render Node" function when we do more than one layer of branch nodes.
                     foreach (var node in this.playerCountNodes)
                     {
                         int depth = 0;
-                        this.BuildNode(node, depth);
+                        this.BuildNode(node, depth, ref buttonId, node.Location == this.currentWorldName);
                     }
                     ImGui.EndTable();
                 }
@@ -100,7 +104,7 @@ namespace RpUtils.UI.Tabs
             }
         }
 
-        private void BuildNode(PlayerCountNode node, int depth)
+        private void BuildNode(PlayerCountNode node, int depth, ref int buttonId, bool isSelectable)
         {
             const int maxDepth = 5;
 
@@ -118,13 +122,26 @@ namespace RpUtils.UI.Tabs
                     {
                         if (subNode.SubLocations.Count() != default && depth < maxDepth)
                         {
-                            this.BuildNode(subNode, depth + 1);
+                            this.BuildNode(subNode, depth + 1, ref buttonId, isSelectable);
                         }
                         else
                         {
                             ImGui.TableNextRow();
                             ImGui.TableNextColumn();
                             ImGui.TreeNodeEx(subNode.Location, ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen);
+                            if (subNode.MapId != default && isSelectable)
+                            {
+                                ImGui.SameLine();
+                                buttonId++;
+                                ImGui.PushID(buttonId);
+                                // if (ImGui.SmallButton($"Map ({subNode.MapId})"))
+                                if (ImGui.SmallButton("Map"))
+                                {
+                                    this.OpenMap(subNode.MapId);
+                                }
+                                ImGui.PopID();
+                            }
+
                             ImGui.TableNextColumn();
                             ImGui.Text(subNode.Count.ToString());
                         }
@@ -148,15 +165,21 @@ namespace RpUtils.UI.Tabs
                     uint rawWorld = uint.Parse(parts[1]);
                     string rawMap = parts[2];
 
-                    string translatedWorld = Worlds.GetRow(rawWorld).Name.ToString();
-                    string translatedMap = Maps.Where(map => map.Id == rawMap).FirstOrDefault()?.PlaceName.Value.Name.ToString();
-                    string subMap = Maps.Where(map => map.Id == rawMap).FirstOrDefault()?.PlaceNameSub.Value.Name.ToString();
+                    Map? currentMap = Maps.Where(map => map.Id == rawMap).FirstOrDefault();
+
+                    World world = Worlds.GetRow(rawWorld);
+
+                    string translatedWorld = world.Name.ToString();
+                    string translatedMap = currentMap?.PlaceName.Value.Name.ToString();
+                    string subMap = currentMap?.PlaceNameSub.Value.Name.ToString();
+                    uint mapId = (uint)(currentMap?.RowId ?? default);
 
                     newCounts.Add(new WorldPlayerCount()
                     {
                         WorldName = translatedWorld,
                         Location = translatedMap,
                         Sublocation = subMap,
+                        MapId = mapId,
                         Count = entry.Value,
                     });
                 }
@@ -182,6 +205,7 @@ namespace RpUtils.UI.Tabs
                     worldNode = new PlayerCountNode()
                     {
                        Location = worldPlayerCount.WorldName,
+                       MapId = worldPlayerCount.MapId,
                     };
                     nodes.Add(worldNode);
                 }
@@ -193,6 +217,7 @@ namespace RpUtils.UI.Tabs
                     locationNode = new PlayerCountNode()
                     {
                         Location = worldPlayerCount.Location,
+                        MapId = worldPlayerCount.MapId,
                     };
                     worldNode.SubLocations.Add(locationNode);
                 }
@@ -206,6 +231,7 @@ namespace RpUtils.UI.Tabs
                         {
                             Location = worldPlayerCount.Location,
                             Count = worldPlayerCount.Count,
+                            MapId = worldPlayerCount.MapId,
                         });
                     }
                 }
@@ -221,6 +247,7 @@ namespace RpUtils.UI.Tabs
                         {
                             Location = locationNode.Location,
                             Count = locationNode.Count,
+                            MapId = locationNode.MapId,
                         });
                     }
 
@@ -229,6 +256,7 @@ namespace RpUtils.UI.Tabs
                     {
                         Location = worldPlayerCount.Sublocation,
                         Count = worldPlayerCount.Count,
+                        MapId = worldPlayerCount.MapId,
                     });
                 }
 
@@ -304,6 +332,12 @@ namespace RpUtils.UI.Tabs
             DalamudContainer.PluginLog.Debug("Fetching currently watching for RP count");
             var count = await connectionService.InvokeHubMethodAsync<int>("GetCurrentWatchingForRpCount");
             currentWatchingForRpCount = count;
+        }
+
+        public unsafe void OpenMap(uint mapId)
+        {
+            var agentMapPtr = AgentMap.Instance();
+            agentMapPtr->OpenMapByMapId(mapId);
         }
     }
 }
