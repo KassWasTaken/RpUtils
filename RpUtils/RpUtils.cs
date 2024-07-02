@@ -26,7 +26,7 @@ namespace RpUtils
         public readonly WindowSystem WindowSystem = new("RpUtils");
         private MainWindow MainWindow { get; init; }
 
-        public RpUtils([RequiredVersion("1.0")] DalamudPluginInterface pluginInterface)
+        public RpUtils(IDalamudPluginInterface pluginInterface)
         {
             DalamudContainer.Initialize(pluginInterface);
 

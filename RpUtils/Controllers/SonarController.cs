@@ -11,7 +11,7 @@ using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using RpUtils.Services;
 using System.Timers;
-using FFXIVClientStructs.FFXIV.Client.Game.Housing;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using System.Linq;
 
 namespace RpUtils.Controllers
@@ -145,7 +145,7 @@ namespace RpUtils.Controllers
 
         private void CheckAndSubmitPlayerPosition(Object source, ElapsedEventArgs e)
         {
-            PlayerCharacter? player = DalamudContainer.ClientState.LocalPlayer;
+            IPlayerCharacter? player = DalamudContainer.ClientState.LocalPlayer;
             bool isLoggedIn = DalamudContainer.ClientState.IsLoggedIn;
             bool isPvpNotInWolvesDen = DalamudContainer.ClientState.IsPvPExcludingDen;
             bool isRoleplaying = false;
@@ -257,7 +257,7 @@ namespace RpUtils.Controllers
         }
 
 
-        private async Task SendLocationToServer(PlayerCharacter player)
+        private async Task SendLocationToServer(IPlayerCharacter player)
         {
             if (!previouslyNotifiedSharingLocation)
             {

@@ -12,7 +12,7 @@ namespace RpUtils.Services
     {
         private Configuration configuration;
         private ConnectionService connectionService;
-        private DtrBarEntry dtrBarEntry;
+        private IDtrBarEntry dtrBarEntry;
         private MainWindow mainWindow;
 
         public DtrEntryService(Configuration configuration, ConnectionService connectionService, MainWindow mainWindow)

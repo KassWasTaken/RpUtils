@@ -60,7 +60,7 @@ namespace RpUtils
         // the below exist just to make saving less cumbersome
 
         [NonSerialized]
-        private DalamudPluginInterface pluginInterface;
+        private IDalamudPluginInterface pluginInterface;
 
         [NonSerialized]
         public string ApiVersion = "0.1.0";
@@ -69,7 +69,7 @@ namespace RpUtils
         [NonSerialized]
         public string HubAddress = "/rpUtilsHub";
 
-        public void Initialize(DalamudPluginInterface pluginInterface)
+        public void Initialize(IDalamudPluginInterface pluginInterface)
         {
             this.pluginInterface = pluginInterface;
         }
