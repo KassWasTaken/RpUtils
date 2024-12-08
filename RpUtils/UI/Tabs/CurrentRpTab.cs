@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using ImGuiNET;
 using Lumina.Excel;
-using Lumina.Excel.GeneratedSheets;
+using Lumina.Excel.Sheets;
 using RpUtils.Models;
 using RpUtils.Services;
 
@@ -28,7 +28,7 @@ namespace RpUtils.UI.Tabs
         private int currentWatchingForRpCount = 0;
         private ExcelSheet<Map> Maps { get; set; }
         private ExcelSheet<World> Worlds { get; set; }
-        private string currentWorldName => DalamudContainer.ClientState?.LocalPlayer?.CurrentWorld?.GameData.Name ?? string.Empty;
+        private string currentWorldName => DalamudContainer.ClientState?.LocalPlayer?.CurrentWorld.Value.Name.ExtractText() ?? string.Empty;
 
         public CurrentRpTab(ConnectionService connectionService)
         {

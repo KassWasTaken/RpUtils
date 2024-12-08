@@ -1,10 +1,5 @@
 ﻿using Dalamud.Game.Command;
 using Dalamud.Plugin;
-using Dalamud.IoC;
-using System.IO;
-using System.Reflection;
-using System;
-using System.Threading.Tasks;
 using RpUtils.Controllers;
 using RpUtils.Services;
 using RpUtils.UI;
@@ -17,7 +12,6 @@ namespace RpUtils
         public string Name => "RP Utils";
 
         private const string CommandName = "/rputils";
-
         private Configuration Configuration { get; init; }
         private SonarController SonarController { get; init; }
         private ConnectionService ConnectionService { get; init; }
