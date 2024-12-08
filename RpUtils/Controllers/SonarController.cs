@@ -1,6 +1,6 @@
 ﻿using Dalamud.Game.ClientState.Objects.SubKinds;
 using Lumina.Excel;
-using Lumina.Excel.GeneratedSheets;
+using Lumina.Excel.Sheets;
 using RpUtils.Models;
 using System.Collections.Generic;
 using System;
@@ -34,7 +34,7 @@ namespace RpUtils.Controllers
         private bool amIBrodcastingLocation = false;
 
         // 0 = cities, 1 = overworld, 7 = map-ish zones?, 13 = housing zone, 23 = goldsaucer, 26/47 = diadem, 41 = eureka, 48 = bozja
-        private int[] allowedTerritoryIntendedUses = [0, 1, 7, 23, 26, 47, 41, 48];
+        private uint[] allowedTerritoryIntendedUses = [0, 1, 7, 23, 26, 47, 41, 48];
 
         public SonarController(Configuration configuration, ConnectionService connectionService)
         {
@@ -102,8 +102,8 @@ namespace RpUtils.Controllers
 
             try
             {
-                DalamudContainer.PluginLog.Debug($"Searching for RP in {player.CurrentWorld.Id}:{map.Id.RawString}");
-                var positions = await connectionService.InvokeHubMethodAsync<List<Position>>("GetPlayersInWorldMap", player.CurrentWorld.Id, map.Id.RawString);
+                DalamudContainer.PluginLog.Debug($"Searching for RP in {player.CurrentWorld.RowId}:{map.Id.ExtractText()}");
+                var positions = await connectionService.InvokeHubMethodAsync<List<Position>>("GetPlayersInWorldMap", player.CurrentWorld.RowId, map.Id.ExtractText());
 
                 DalamudContainer.PluginLog.Debug($"Positions found: {positions.Count}");
 
@@ -151,12 +151,12 @@ namespace RpUtils.Controllers
             bool isRoleplaying = false;
             bool isInHousingDistrict = this.IsPlayerInHousingDistrict();
             
-            bool isInAllowedTerritoryIntendedUse = allowedTerritoryIntendedUses.Contains(int.Parse(TerritoryTypes.GetRow(DalamudContainer.ClientState.TerritoryType).TerritoryIntendedUse.ToString()));
+            bool isInAllowedTerritoryIntendedUse = allowedTerritoryIntendedUses.Contains(TerritoryTypes.GetRow(DalamudContainer.ClientState.TerritoryType).TerritoryIntendedUse.Value.RowId);
             DalamudContainer.PluginLog.Debug($"TerritoryIntendedUse: {TerritoryTypes.GetRow(DalamudContainer.ClientState.TerritoryType).TerritoryIntendedUse.ToString()} isAllowed: {isInAllowedTerritoryIntendedUse}");
 
             if (player != null)
             {
-                isRoleplaying = this.IsPlayerRoleplaying(player.OnlineStatus.GameData.Name);
+                isRoleplaying = this.IsPlayerRoleplaying(player.OnlineStatus.Value.Name.ExtractText());
             }
 
             // Handle fail conditions that can cause is to have to remove location data.
@@ -172,7 +172,7 @@ namespace RpUtils.Controllers
             if (player != null)
             {
                 // Player needs to have moved and needs to be roleplaying
-                if (HasPlayerMoved(player.Position) && IsPlayerRoleplaying(player.OnlineStatus.GameData.Name) && isInAllowedTerritoryIntendedUse)
+                if (HasPlayerMoved(player.Position) && IsPlayerRoleplaying(player.OnlineStatus.Value.Name.ExtractText()) && isInAllowedTerritoryIntendedUse)
                 {
                     // If we're in a housing district, we want to check if we were previously reported as being in a housing district
                     // If we weren't, then we want to remove the location data since we're no longer reporting in this zone. If we were
@@ -266,10 +266,10 @@ namespace RpUtils.Controllers
 
             DalamudContainer.PluginLog.Debug("Sending location to server");
             var map = GetCurrentMap();
-            DalamudContainer.PluginLog.Debug($"Sending location to server {map.Id.RawString}");
+            DalamudContainer.PluginLog.Debug($"Sending location to server {map.Id.ExtractText()}");
             await connectionService.InvokeHubMethodAsync("SendLocation",
-                player.CurrentWorld.Id,
-                map.Id.RawString,
+                player.CurrentWorld.Value.RowId,
+                map.Id.ExtractText(),
                 player.Position.X + map.OffsetX,
                 player.Position.Z + map.OffsetY);
 
