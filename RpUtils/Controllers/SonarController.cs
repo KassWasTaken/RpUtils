@@ -154,54 +154,61 @@ namespace RpUtils.Controllers
 
         private void CheckAndSubmitPlayerPosition()
         {
-            DalamudContainer.PluginLog.Debug("CheckAndSubmitPlayerPosition");
-            IPlayerCharacter? player = DalamudContainer.ObjectTable?.LocalPlayer;
-            bool isLoggedIn = DalamudContainer.ClientState.IsLoggedIn;
-            bool isPvpNotInWolvesDen = DalamudContainer.ClientState.IsPvPExcludingDen;
-            bool isRoleplaying = false;
-            bool isInHousingDistrict = this.IsPlayerInHousingDistrict();
-
-            bool isInAllowedTerritoryIntendedUse = allowedTerritoryIntendedUses.Contains(TerritoryTypes.GetRow(DalamudContainer.ClientState.TerritoryType).TerritoryIntendedUse.Value.RowId);
-            DalamudContainer.PluginLog.Debug($"TerritoryIntendedUse: {TerritoryTypes.GetRow(DalamudContainer.ClientState.TerritoryType).TerritoryIntendedUse.ToString()} isAllowed: {isInAllowedTerritoryIntendedUse}");
-
-            if (player != null)
+            try
             {
-                isRoleplaying = this.IsPlayerRoleplaying(player.OnlineStatus.Value.Name.ExtractText());
-            }
+                IPlayerCharacter? player = DalamudContainer.ObjectTable?.LocalPlayer;
+                bool isLoggedIn = DalamudContainer.ClientState.IsLoggedIn;
+                bool isPvpNotInWolvesDen = DalamudContainer.ClientState.IsPvPExcludingDen;
+                bool isRoleplaying = false;
+                bool isInHousingDistrict = this.IsPlayerInHousingDistrict();
+                ushort territoryTypeId = DalamudContainer.ClientState.TerritoryType;
 
-            // Handle fail conditions that can cause is to have to remove location data.
-            if (amIBrodcastingLocation)
-            {
-                if (player == null || !isLoggedIn || isPvpNotInWolvesDen || !isRoleplaying || isInHousingDistrict || !isInAllowedTerritoryIntendedUse)
-                {   
-                    this.RemoveLocationFromServer();
+                if (territoryTypeId == 0 || player == null)
+                {
                     return;
                 }
-            }
 
-            if (player != null)
-            {
-                // Player needs to have moved and needs to be roleplaying
-                if (HasPlayerMoved(player.Position) && IsPlayerRoleplaying(player.OnlineStatus.Value.Name.ExtractText()) && isInAllowedTerritoryIntendedUse)
+                bool isInAllowedTerritoryIntendedUse = allowedTerritoryIntendedUses.Contains(TerritoryTypes.GetRow(territoryTypeId).TerritoryIntendedUse.Value.RowId);
+                isRoleplaying = this.IsPlayerRoleplaying(player.OnlineStatus.Value.Name.ExtractText());
+
+                // Handle fail conditions that can cause is to have to remove location data.
+                if (amIBrodcastingLocation)
                 {
-                    // If we're in a housing district, we want to check if we were previously reported as being in a housing district
-                    // If we weren't, then we want to remove the location data since we're no longer reporting in this zone. If we were
-                    // already reported as being in a housing district, we don't need to do anything
-                    if (isInHousingDistrict)
+                    if (player == null || !isLoggedIn || isPvpNotInWolvesDen || !isRoleplaying || isInHousingDistrict || !isInAllowedTerritoryIntendedUse)
                     {
-                        if (!lastReportedInHousing)
-                        {
-                            lastReportedInHousing = true;
-                            this.RemoveLocationFromServer();
-                        }
-                    }
-                    else
-                    {
-                        lastReportedInHousing = false;
-                        SendLocationToServer(player);
+                        this.RemoveLocationFromServer();
+                        return;
                     }
                 }
-            }            
+
+                if (player != null)
+                {
+                    // Player needs to have moved and needs to be roleplaying
+                    if (HasPlayerMoved(player.Position) && IsPlayerRoleplaying(player.OnlineStatus.Value.Name.ExtractText()) && isInAllowedTerritoryIntendedUse)
+                    {
+                        // If we're in a housing district, we want to check if we were previously reported as being in a housing district
+                        // If we weren't, then we want to remove the location data since we're no longer reporting in this zone. If we were
+                        // already reported as being in a housing district, we don't need to do anything
+                        if (isInHousingDistrict)
+                        {
+                            if (!lastReportedInHousing)
+                            {
+                                lastReportedInHousing = true;
+                                this.RemoveLocationFromServer();
+                            }
+                        }
+                        else
+                        {
+                            lastReportedInHousing = false;
+                            SendLocationToServer(player);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DalamudContainer.PluginLog.Error($"Error in CheckAndSubmitPlayerPosition: {ex}");
+            }  
         }
 
         private void NotifySharingLocation()
