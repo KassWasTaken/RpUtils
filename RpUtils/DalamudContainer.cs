@@ -6,7 +6,10 @@ public class DalamudContainer
 {
     [PluginService]
     public static IClientState ClientState { get; private set; } = null;
-    
+
+    [PluginService]
+    public static IObjectTable ObjectTable { get; private set; } = null;
+
     [PluginService]
     public static ICommandManager CommandManager { get; private set; } = null;
 
@@ -27,6 +30,9 @@ public class DalamudContainer
 
     [PluginService]
     public static IDtrBar DtrBar { get; private set; }
+
+    [PluginService]
+    public static IFramework Framework { get; private set; } = null;
 
     public static void Initialize(IDalamudPluginInterface pluginInterface)
     {

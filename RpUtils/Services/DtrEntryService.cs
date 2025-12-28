@@ -46,7 +46,7 @@ namespace RpUtils.Services
         private void UpdateDtr()
         {
             SetDtrText();
-            dtrBarEntry.OnClick = () => { this.mainWindow.Toggle(); };
+            dtrBarEntry.OnClick = (e) => { mainWindow.Toggle(); };
             dtrBarEntry.Tooltip = "Click to open RP Utils";
         }
 

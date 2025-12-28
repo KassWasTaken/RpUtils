@@ -10,7 +10,6 @@ using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using RpUtils.Services;
-using System.Timers;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using System.Linq;
 
@@ -24,7 +23,7 @@ namespace RpUtils.Controllers
         private ExcelSheet<TerritoryType> TerritoryTypes { get; set; }
         private ExcelSheet<OnlineStatus> OnlineStatuses { get; set; }
 
-        private Timer positionCheckTimer;
+        private DateTime lastPositionCheck = DateTime.MinValue;
         private Vector3 lastReportedPosition = Vector3.Zero;
         private bool lastReportedInHousing = false;
         private const float DistanceThreshold = 5.0f;
@@ -49,11 +48,6 @@ namespace RpUtils.Controllers
             this.configuration.OnSonarEnabledChanged += OnConfigChangedHandler;
             this.configuration.OnUtilsEnabledChanged += OnConfigChangedHandler;
             this.connectionService.OnConnectionChange += OnConfigChangedHandler;
-
-            // Setting up timer for how often we check our position
-            positionCheckTimer = new Timer(PositionCheckInterval);
-            positionCheckTimer.Elapsed += CheckAndSubmitPlayerPosition;
-            positionCheckTimer.AutoReset = true;
         }
 
         // Handler for our config change listener, we're just going to kick off the toggle
@@ -80,14 +74,23 @@ namespace RpUtils.Controllers
         private void EnableSonar()
         {
             DalamudContainer.Lifecycle.RegisterListener(Dalamud.Game.Addon.Lifecycle.AddonEvent.PostRefresh, "AreaMap", OnOpenMap);
-            positionCheckTimer.Enabled = true;
+            DalamudContainer.Framework.Update += OnFrameworkUpdate;
         }
 
         private void DisableSonar()
         {
             DalamudContainer.Lifecycle.UnregisterListener(Dalamud.Game.Addon.Lifecycle.AddonEvent.PostRefresh, "AreaMap", OnOpenMap);
-            positionCheckTimer.Enabled = false;
+            DalamudContainer.Framework.Update -= OnFrameworkUpdate;
             ClearMapMarkers();
+        }
+
+        private void OnFrameworkUpdate(Dalamud.Plugin.Services.IFramework framework)
+        {
+            if ((DateTime.Now - lastPositionCheck).TotalMilliseconds >= PositionCheckInterval)
+            {
+                lastPositionCheck = DateTime.Now;
+                CheckAndSubmitPlayerPosition();
+            }
         }
 
         private void OnOpenMap(AddonEvent type, AddonArgs args)
@@ -97,11 +100,17 @@ namespace RpUtils.Controllers
 
         public async Task FindNearbyRp()
         {
-            var player = DalamudContainer.ClientState.LocalPlayer;
+            var player = DalamudContainer.ObjectTable?.LocalPlayer;
             var map = GetSelectedMap();
 
             try
             {
+                if (player == null)
+                {
+                    DalamudContainer.PluginLog.Warning("Player is null in FindNearbyRp");
+                    return;
+                }
+
                 DalamudContainer.PluginLog.Debug($"Searching for RP in {player.CurrentWorld.RowId}:{map.Id.ExtractText()}");
                 var positions = await connectionService.InvokeHubMethodAsync<List<Position>>("GetPlayersInWorldMap", player.CurrentWorld.RowId, map.Id.ExtractText());
 
@@ -111,7 +120,7 @@ namespace RpUtils.Controllers
             }
             catch (Exception ex)
             {
-                DalamudContainer.PluginLog.Debug($"Error fetching data from server: {ex}");
+                DalamudContainer.PluginLog.Error($"Error fetching data from server: {ex}");
             }
         }
 
@@ -143,14 +152,15 @@ namespace RpUtils.Controllers
             });
         }
 
-        private void CheckAndSubmitPlayerPosition(Object source, ElapsedEventArgs e)
+        private void CheckAndSubmitPlayerPosition()
         {
-            IPlayerCharacter? player = DalamudContainer.ClientState.LocalPlayer;
+            DalamudContainer.PluginLog.Debug("CheckAndSubmitPlayerPosition");
+            IPlayerCharacter? player = DalamudContainer.ObjectTable?.LocalPlayer;
             bool isLoggedIn = DalamudContainer.ClientState.IsLoggedIn;
             bool isPvpNotInWolvesDen = DalamudContainer.ClientState.IsPvPExcludingDen;
             bool isRoleplaying = false;
             bool isInHousingDistrict = this.IsPlayerInHousingDistrict();
-            
+
             bool isInAllowedTerritoryIntendedUse = allowedTerritoryIntendedUses.Contains(TerritoryTypes.GetRow(DalamudContainer.ClientState.TerritoryType).TerritoryIntendedUse.Value.RowId);
             DalamudContainer.PluginLog.Debug($"TerritoryIntendedUse: {TerritoryTypes.GetRow(DalamudContainer.ClientState.TerritoryType).TerritoryIntendedUse.ToString()} isAllowed: {isInAllowedTerritoryIntendedUse}");
 
@@ -163,7 +173,7 @@ namespace RpUtils.Controllers
             if (amIBrodcastingLocation)
             {
                 if (player == null || !isLoggedIn || isPvpNotInWolvesDen || !isRoleplaying || isInHousingDistrict || !isInAllowedTerritoryIntendedUse)
-                {
+                {   
                     this.RemoveLocationFromServer();
                     return;
                 }
@@ -191,7 +201,7 @@ namespace RpUtils.Controllers
                         SendLocationToServer(player);
                     }
                 }
-            }
+            }            
         }
 
         private void NotifySharingLocation()
@@ -293,7 +303,7 @@ namespace RpUtils.Controllers
             this.configuration.OnSonarEnabledChanged -= OnConfigChangedHandler;
             this.configuration.OnUtilsEnabledChanged -= OnConfigChangedHandler;
             this.connectionService.OnConnectionChange -= OnConfigChangedHandler;
-            positionCheckTimer.Dispose();
+            DalamudContainer.Framework.Update -= OnFrameworkUpdate;
         }
     }
 }
