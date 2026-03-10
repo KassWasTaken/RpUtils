@@ -126,6 +126,8 @@ namespace RpUtils.UI.Windows
 
         public override void Draw()
         {
+            var isConnected = _connectionStatus.Status == ConnectionState.Connected;
+            ImGui.BeginDisabled(!isConnected);
             ImGui.Text("Rp Utils:");
             ImGui.SameLine();
             DrawConnectionStatus();
@@ -135,6 +137,7 @@ namespace RpUtils.UI.Windows
             DrawIconButton(FontAwesomeIcon.MapMarkedAlt, "Find Roleplay", _toggleFindRoleplayWindow);
             ImGui.SameLine();
             DrawIconButton(FontAwesomeIcon.PeopleGroup, "Lobbies", _toggleLobbiesWindow);
+            ImGui.EndDisabled();
             ImGui.SameLine();
             DrawIconButton(FontAwesomeIcon.Cog, "Settings", _toggleConfigWindow);
         }

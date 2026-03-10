@@ -21,7 +21,7 @@ public sealed class UIManager : IDisposable
     {
         _configWindow = new ConfigWindow(configuration, connectionStatus);
         _lobbyWindow = new LobbyWindow();
-        _shareLocationWindow = new ShareLocationWindow(sonarController);
+        _shareLocationWindow = new ShareLocationWindow(connectionStatus, sonarController);
         _findRoleplayWindow = new FindRoleplayWindow(sonarController);
         _toolbarWindow = new ToolbarWindow(
             configuration,

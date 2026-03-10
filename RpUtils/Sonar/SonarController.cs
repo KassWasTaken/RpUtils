@@ -62,13 +62,23 @@ public sealed class SonarController : ISonarController, IDisposable
 
         Plugin.Framework.Update += OnFrameworkUpdate;
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PostRefresh, "AreaMap", OnMapOpened);
+
+        _sonarService.OnReconnected += OnReconnected;
+    }
+
+    private void OnReconnected()
+    {
+        if (IsSharingLocation)
+        {
+            _lastWorld = 0;
+            _lastMap = string.Empty;
+        }
     }
 
     private void OnFrameworkUpdate(IFramework framework)
     {
         if (!IsSharingLocation) return;
         if (!_sendTimer.IsRunning || _sendTimer.Elapsed < _sendInterval) return;
-
         _sendTimer.Restart();
 
         var localPlayer = Plugin.ObjectTable.LocalPlayer;
@@ -325,6 +335,7 @@ public sealed class SonarController : ISonarController, IDisposable
     {
         Plugin.Framework.Update -= OnFrameworkUpdate;
         Plugin.AddonLifecycle.UnregisterListener(AddonEvent.PostRefresh, "AreaMap", OnMapOpened);
+        _sonarService.OnReconnected -= OnReconnected;
 
         if (IsSharingLocation)
         {

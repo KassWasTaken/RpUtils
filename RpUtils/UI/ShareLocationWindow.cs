@@ -1,5 +1,7 @@
 ﻿using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
+using RpUtils.Models;
+using RpUtils.Services;
 using RpUtils.Sonar;
 using RpUtils.Sonar.Models;
 using System.Threading.Tasks;
@@ -8,14 +10,16 @@ namespace RpUtils.UI.Windows;
 
 internal class ShareLocationWindow : Window
 {
+    private readonly IConnectionStatus _connectionStatus;
     private readonly ISonarController _sonarController;
 
-    public ShareLocationWindow(ISonarController sonarController) : base("Share Roleplay Location")
+    public ShareLocationWindow(IConnectionStatus connectionStatus, ISonarController sonarController) : base("Share Roleplay Location")
     {
         Flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar |
         ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.AlwaysAutoResize;
 
         IsOpen = false;
+        _connectionStatus = connectionStatus;
         _sonarController = sonarController;
     }
 
@@ -45,6 +49,8 @@ internal class ShareLocationWindow : Window
     public override void Draw()
     {
         var isSharing = _sonarController.IsSharingLocation;
+        var isConnected = _connectionStatus.Status == ConnectionState.Connected;
+        ImGui.BeginDisabled(!isConnected);
         if (ImGui.Checkbox("Share Roleplay Location", ref isSharing))
         {
             Task.Run(async () =>
@@ -61,5 +67,6 @@ internal class ShareLocationWindow : Window
         }
 
         DrawActivitySelection();
+        ImGui.EndDisabled();
     }
 }

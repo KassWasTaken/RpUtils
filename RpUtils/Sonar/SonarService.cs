@@ -12,9 +12,12 @@ public sealed class SonarService
 {
     private readonly HubConnectionService _hub;
 
+    public event Action? OnReconnected;
+
     public SonarService(HubConnectionService hub)
     {
         _hub = hub;
+        _hub.OnConnected += _ => OnReconnected?.Invoke();
     }
 
     public async Task SendLocation(int world, string map, float posX, float posZ, string activity)
