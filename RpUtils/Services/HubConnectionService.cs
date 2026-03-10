@@ -49,7 +49,7 @@ public sealed class HubConnectionService : IAsyncDisposable, IConnectionStatus
 
         SetStatus(ConnectionState.Connecting);
 
-        var connectionUrl = $"{_configuration.ServerAddress}{_configuration.HubAddress}?version={_configuration.ApiVersion}";
+        var connectionUrl = $"{PluginConstants.ServerAddress}{PluginConstants.HubAddress}?version={PluginConstants.ApiVersion}";
         Plugin.Log.Info($"Connecting to RpUtils server: {connectionUrl}");
 
         _connection = new HubConnectionBuilder()
