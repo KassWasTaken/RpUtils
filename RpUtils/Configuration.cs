@@ -13,7 +13,7 @@ public class Configuration : IPluginConfiguration
     public bool ShowToolbar { get; set; } = true;
 
     [NonSerialized]
-    public string ApiVersion = "0.1.0";
+    public string ApiVersion = "0.2.0";
     [NonSerialized]
     public string ServerAddress = "http://localhost:8080";
     [NonSerialized]
