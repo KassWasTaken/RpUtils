@@ -1,4 +1,5 @@
-﻿using Dalamud.Plugin.Services;
+﻿using Dalamud.Interface.ImGuiNotification;
+using Dalamud.Plugin.Services;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
 using RpUtils.Models;
@@ -83,6 +84,20 @@ public sealed class HubConnectionService : IAsyncDisposable, IConnectionStatus
             OnConnected?.Invoke(_connection);
             return Task.CompletedTask;
         };
+
+        _connection.On<string>("UpdateClient", message =>
+        {
+            Plugin.Log.Warning($"RpUtils requires update: {message}");
+
+            Plugin.NotificationManager.AddNotification(new Notification
+            {
+                Content = $"Please update RpUtils: {message}",
+                Type = NotificationType.Error,
+            });
+
+            // Disconnect — we can't operate with a mismatched version
+            Task.Run(async () => await DisconnectAsync());
+        });
 
         OnConnected?.Invoke(_connection);
 
