@@ -88,7 +88,7 @@ public sealed class SonarController : ISonarController, IDisposable
         var world = (int)Plugin.PlayerState.CurrentWorld.RowId;
         var currentMap = GetCurrentMap();
         if (currentMap is null) return;
-        var currentMapText = currentMap.Value.Id.ExtractText();
+        var currentMapText = currentMap.Value.Id.ToString();
         var territoryType = Plugin.ClientState.TerritoryType;
         if (territoryType == 0) return; // Not in a valid territory
         // Checking if we're in an allowed territory. If they weren't and have entered one
@@ -248,7 +248,7 @@ public sealed class SonarController : ISonarController, IDisposable
     private string ResolveWorldName(int worldId)
     {
         var world = _worlds.GetRow((uint)worldId);
-        var name = world.Name.ExtractText();
+        var name = world.Name.ToString();
         return string.IsNullOrEmpty(name) ? worldId.ToString() : name;
     }
 
@@ -256,9 +256,9 @@ public sealed class SonarController : ISonarController, IDisposable
     {
         foreach (var row in _maps)
         {
-            if (row.Id.ExtractText() == mapId)
+            if (row.Id.ToString() == mapId)
             {
-                var name = row.PlaceName.Value.Name.ExtractText();
+                var name = row.PlaceName.Value.Name.ToString();
                 if (!string.IsNullOrEmpty(name)) return name;
             }
         }
@@ -287,7 +287,7 @@ public sealed class SonarController : ISonarController, IDisposable
         var map = GetSelectedMap();
         if (map == null) return;
 
-        var mapId = map.Value.Id.ExtractText();
+        var mapId = map.Value.Id.ToString();
         Plugin.Log.Debug("Fetching RP positions for {World}:{Map}", world, mapId);
 
         var positions = await _sonarService.GetPlayersInWorldMap(world, mapId);

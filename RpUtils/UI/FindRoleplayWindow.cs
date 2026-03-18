@@ -1,4 +1,5 @@
 ﻿using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using RpUtils.Sonar;
 using RpUtils.Sonar.Models;
@@ -57,49 +58,43 @@ internal class FindRoleplayWindow : Window
             | ImGuiTableFlags.Resizable | ImGuiTableFlags.NoBordersInBody
             | ImGuiTableFlags.RowBg;
 
-        if (ImGui.BeginTable("Find Roleplay", 2, tableFlags))
-        {
-            ImGui.TableSetupColumn("Location", ImGuiTableColumnFlags.NoHide | ImGuiTableColumnFlags.WidthStretch);
-            ImGui.TableSetupColumn("Count", ImGuiTableColumnFlags.WidthFixed, 50);
-            ImGui.TableHeadersRow();
+        using var table = ImRaii.Table("Find Roleplay", 2, tableFlags);
+        if (!table) return;
 
-            foreach (var world in _sonar.GroupedCounts)
+        ImGui.TableSetupColumn("Location", ImGuiTableColumnFlags.NoHide | ImGuiTableColumnFlags.WidthStretch);
+        ImGui.TableSetupColumn("Count", ImGuiTableColumnFlags.WidthFixed, 50);
+        ImGui.TableHeadersRow();
+
+        foreach (var world in _sonar.GroupedCounts)
+        {
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            using var worldNode = ImRaii.TreeNode(world.WorldName, ImGuiTreeNodeFlags.SpanFullWidth);
+            ImGui.TableNextColumn();
+            ImGui.Text(world.TotalCount.ToString());
+
+            if (!worldNode) continue;
+
+            foreach (var map in world.Maps)
             {
                 ImGui.TableNextRow();
                 ImGui.TableNextColumn();
-                var worldOpen = ImGui.TreeNodeEx(world.WorldName, ImGuiTreeNodeFlags.SpanFullWidth);
+                using var mapNode = ImRaii.TreeNode(map.MapName, ImGuiTreeNodeFlags.SpanFullWidth);
                 ImGui.TableNextColumn();
-                ImGui.Text(world.TotalCount.ToString());
+                ImGui.Text(map.TotalCount.ToString());
 
-                if (worldOpen)
+                if (!mapNode) continue;
+
+                foreach (var activity in map.Activities)
                 {
-                    foreach (var map in world.Maps)
-                    {
-                        ImGui.TableNextRow();
-                        ImGui.TableNextColumn();
-                        var mapOpen = ImGui.TreeNodeEx(map.MapName, ImGuiTreeNodeFlags.SpanFullWidth);
-                        ImGui.TableNextColumn();
-                        ImGui.Text(map.TotalCount.ToString());
-
-                        if (mapOpen)
-                        {
-                            foreach (var activity in map.Activities)
-                            {
-                                ImGui.TableNextRow();
-                                ImGui.TableNextColumn();
-                                ImGui.TreeNodeEx(SonarActivity.DisplayName(activity.Activity),
-                                    ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen | ImGuiTreeNodeFlags.SpanFullWidth);
-                                ImGui.TableNextColumn();
-                                ImGui.Text(activity.Count.ToString());
-                            }
-                            ImGui.TreePop();
-                        }
-                    }
-                    ImGui.TreePop();
+                    ImGui.TableNextRow();
+                    ImGui.TableNextColumn();
+                    ImGui.TreeNodeEx(SonarActivity.DisplayName(activity.Activity),
+                        ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen | ImGuiTreeNodeFlags.SpanFullWidth);
+                    ImGui.TableNextColumn();
+                    ImGui.Text(activity.Count.ToString());
                 }
             }
-
-            ImGui.EndTable();
         }
     }
 }

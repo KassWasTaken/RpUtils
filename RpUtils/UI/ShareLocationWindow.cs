@@ -1,4 +1,5 @@
 ﻿using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using RpUtils.Models;
 using RpUtils.Services;
@@ -27,22 +28,21 @@ internal class ShareLocationWindow : Window
     {
         var selected = SonarActivity.DisplayName(_sonarController.CurrentActivity);
 
-        if (ImGui.BeginCombo("##RoleplayActivity", selected))
+        using var combo = ImRaii.Combo("##RoleplayActivity", selected);
+        if (!combo) return;
+
+        foreach (var activity in SonarActivity.All)
         {
-            foreach (var activity in SonarActivity.All)
+            var isSelected = activity == _sonarController.CurrentActivity;
+            if (ImGui.Selectable(SonarActivity.DisplayName(activity), isSelected))
             {
-                var isSelected = activity == _sonarController.CurrentActivity;
-                if (ImGui.Selectable(SonarActivity.DisplayName(activity), isSelected))
-                {
-                    var act = activity;
-                    _sonarController.SetActivity(act);
-                }
-                if (isSelected)
-                {
-                    ImGui.SetItemDefaultFocus();
-                }
+                var act = activity;
+                _sonarController.SetActivity(act);
             }
-            ImGui.EndCombo();
+            if (isSelected)
+            {
+                ImGui.SetItemDefaultFocus();
+            }
         }
     }
 
@@ -50,7 +50,7 @@ internal class ShareLocationWindow : Window
     {
         var isSharing = _sonarController.IsSharingLocation;
         var isConnected = _connectionStatus.Status == ConnectionState.Connected;
-        ImGui.BeginDisabled(!isConnected);
+        using var disabled = ImRaii.Disabled(!isConnected);
         if (ImGui.Checkbox("Share Roleplay Location", ref isSharing))
         {
             Task.Run(async () =>
@@ -67,6 +67,5 @@ internal class ShareLocationWindow : Window
         }
 
         DrawActivitySelection();
-        ImGui.EndDisabled();
     }
 }
