@@ -4,21 +4,20 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace RpUtils.UI.Windows
+namespace RpUtils.UI.Windows;
+
+internal class LobbyWindow : Window
 {
-    internal class LobbyWindow : Window
+    public LobbyWindow() : base("Lobbies")
     {
-        public LobbyWindow() : base("Lobbies")
-        {
-            Flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar |
-            ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.AlwaysAutoResize;
+        Flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar |
+        ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.AlwaysAutoResize;
 
-            IsOpen = false;
-        }
+        IsOpen = false;
+    }
 
-        public override void Draw()
-        {
-            ImGui.Text("Coming soon...");
-        }
+    public override void Draw()
+    {
+        ImGui.Text("Coming soon...");
     }
 }
