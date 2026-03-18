@@ -2,6 +2,7 @@
 using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Textures;
+using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
 using RpUtils.Models;
@@ -127,17 +128,18 @@ namespace RpUtils.UI.Windows
         public override void Draw()
         {
             var isConnected = _connectionStatus.Status == ConnectionState.Connected;
-            ImGui.BeginDisabled(!isConnected);
-            ImGui.Text("Rp Utils:");
-            ImGui.SameLine();
-            DrawConnectionStatus();
+            using (ImRaii.Disabled(!isConnected))
+            {
+                ImGui.Text("Rp Utils:");
+                ImGui.SameLine();
+                DrawConnectionStatus();
 
-            DrawSonarButton();
-            ImGui.SameLine();
-            DrawIconButton(FontAwesomeIcon.MapMarkedAlt, "Find Roleplay", _toggleFindRoleplayWindow);
-            ImGui.SameLine();
-            DrawIconButton(FontAwesomeIcon.PeopleGroup, "Lobbies", _toggleLobbiesWindow);
-            ImGui.EndDisabled();
+                DrawSonarButton();
+                ImGui.SameLine();
+                DrawIconButton(FontAwesomeIcon.MapMarkedAlt, "Find Roleplay", _toggleFindRoleplayWindow);
+                ImGui.SameLine();
+                DrawIconButton(FontAwesomeIcon.PeopleGroup, "Lobbies", _toggleLobbiesWindow);
+            }
             ImGui.SameLine();
             DrawIconButton(FontAwesomeIcon.Cog, "Settings", _toggleConfigWindow);
         }
